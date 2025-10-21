@@ -19,7 +19,9 @@ package org.kiwix.kiwixmobile.settings
 
 import android.Manifest
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
+import androidx.preference.PreferenceManager
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.accessibility.AccessibilityChecks
 import androidx.test.espresso.matcher.ViewMatchers.withContentDescription
@@ -36,7 +38,7 @@ import org.hamcrest.Matchers.anyOf
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.kiwix.kiwixmobile.R
+import org.kiwix.kiwixmobile.core.main.CoreMainActivity
 import org.kiwix.kiwixmobile.core.utils.LanguageUtils.Companion.handleLocaleChange
 import org.kiwix.kiwixmobile.core.utils.SharedPreferenceUtil
 import org.kiwix.kiwixmobile.core.utils.TestingUtils.COMPOSE_TEST_RULE_ORDER
@@ -46,6 +48,7 @@ import org.kiwix.kiwixmobile.main.KiwixMainActivity
 import org.kiwix.kiwixmobile.testutils.RetryRule
 import org.kiwix.kiwixmobile.testutils.TestUtils.closeSystemDialogs
 import org.kiwix.kiwixmobile.testutils.TestUtils.isSystemUINotRespondingDialogVisible
+import org.kiwix.kiwixmobile.ui.KiwixDestination
 import org.kiwix.kiwixmobile.utils.StandardActions
 
 class KiwixSettingsFragmentTest {
@@ -55,6 +58,8 @@ class KiwixSettingsFragmentTest {
 
   @get:Rule(order = COMPOSE_TEST_RULE_ORDER)
   val composeTestRule = createComposeRule()
+
+  lateinit var kiwixMainActivity: KiwixMainActivity
 
   private val permissions =
     arrayOf(
@@ -94,6 +99,11 @@ class KiwixSettingsFragmentTest {
       }
       waitForIdle()
     }
+    PreferenceManager.getDefaultSharedPreferences(
+      InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+    ).edit {
+      putBoolean(SharedPreferenceUtil.PREF_IS_TEST, true)
+    }
     val activityScenario = ActivityScenario.launch(KiwixMainActivity::class.java).apply {
       moveToState(Lifecycle.State.RESUMED)
       onActivity {
@@ -108,43 +118,48 @@ class KiwixSettingsFragmentTest {
       }
     }
     activityScenario.onActivity {
-      it.navigate(R.id.introFragment)
+      kiwixMainActivity = it
+      it.navigate(KiwixDestination.Intro.route)
     }
+    composeTestRule.waitForIdle()
     intro {
       swipeLeft(composeTestRule)
       clickGetStarted(composeTestRule) {}
     }
-    StandardActions.openDrawer()
-    StandardActions.enterSettings()
+    StandardActions.openDrawer(kiwixMainActivity as CoreMainActivity)
+    StandardActions.enterSettings(composeTestRule)
   }
 
   @Test
   fun testSettingsActivity() {
     settingsRobo {
-      assertZoomTextViewPresent()
-      assertVersionTextViewPresent()
-      clickLanguagePreference()
-      assertLanguagePrefDialogDisplayed()
+      assertZoomTextViewPresent(composeTestRule)
+      clickNightModePreference(composeTestRule)
+      assertNightModeDialogDisplayed(composeTestRule)
       dismissDialog()
-      toggleBackToTopPref()
-      toggleOpenNewTabInBackground()
-      toggleExternalLinkWarningPref()
-      toggleWifiDownloadsOnlyPref()
-      clickExternalStoragePreference()
-      clickInternalStoragePreference()
-      clickClearHistoryPreference()
+      toggleBackToTopPref(composeTestRule)
+      toggleOpenNewTabInBackground(composeTestRule)
+      toggleExternalLinkWarningPref(composeTestRule)
+      toggleWifiDownloadsOnlyPref(composeTestRule)
+      clickExternalStoragePreference(composeTestRule)
+      clickInternalStoragePreference(composeTestRule)
+      clickClearHistoryPreference(composeTestRule)
       assertHistoryDialogDisplayed(composeTestRule)
       dismissDialog()
-      clickExportBookmarkPreference()
+      clickClearNotesPreference(composeTestRule)
+      assertNotesDialogDisplayed(composeTestRule)
+      dismissDialog()
+      clickExportBookmarkPreference(composeTestRule)
       assertExportBookmarkDialogDisplayed(composeTestRule)
       dismissDialog()
-      clickOnImportBookmarkPreference()
+      clickOnImportBookmarkPreference(composeTestRule)
       assertImportBookmarkDialogDisplayed(composeTestRule)
       dismissDialog()
-      clickNightModePreference()
-      assertNightModeDialogDisplayed()
+      clickLanguagePreference(composeTestRule)
+      assertLanguagePrefDialogDisplayed(composeTestRule)
       dismissDialog()
-      clickCredits()
+      assertVersionTextViewPresent(composeTestRule)
+      clickCredits(composeTestRule)
       assertContributorsDialogDisplayed(composeTestRule)
       dismissDialog()
     }

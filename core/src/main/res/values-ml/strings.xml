@@ -16,8 +16,6 @@
   <string name="menu_search_in_text">എഴുത്തിൽ തിരയുക</string>
   <string name="bookmarks">ബൂക്ക്മാർക്കുകൾ</string>
   <string name="menu_random_article">ഏതെങ്കിലും ലേഖനം</string>
-  <string name="menu_full_screen">മുഴുവന്‍ സ്ക്രീനില്‍</string>
-  <string name="menu_exit_full_screen">പൂർണ സ്ക്രീനിൽ നിന്ന് പുറത്തു കടക്കുക</string>
   <string name="menu_read_aloud">ഉച്ചത്തിൽ വായിക്കുക</string>
   <string name="menu_read_aloud_stop">ഉച്ചത്തിൽ വായിക്കുന്നത് നിർത്തുക</string>
   <string name="menu_support_kiwix">കിവിക്സിനെ പിന്തുണയ്ക്കുക</string>
@@ -122,7 +120,6 @@
   <string name="go_to_previous_page">മുൻപത്തെ താളിലേക്ക് പോവുക</string>
   <string name="go_to_next_page">അടുത്ത താളിലേക്ക് പോവുക</string>
   <string name="table_of_contents">ഉള്ളടക്കപ്പട്ടിക</string>
-  <string name="select_languages">ഭാഷകൾ തിരഞ്ഞെടുക്കുക</string>
   <string name="save_languages">ഭാഷകൾ സേവ് ചെയ്യുക</string>
   <string name="expand">വികസിപ്പിക്കുക</string>
   <string name="history">നാൾവഴി</string>

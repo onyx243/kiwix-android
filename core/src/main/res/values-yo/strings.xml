@@ -14,8 +14,6 @@
   <string name="menu_search_in_text">Ìwárí ninu ojuiwe</string>
   <string name="bookmarks">Abowaba</string>
   <string name="menu_random_article">Àyọkà àrìnnàkò</string>
-  <string name="menu_full_screen">Ojúìran kíkún</string>
-  <string name="menu_exit_full_screen">Ìjáde kúrò nínu ojúìran kíkúnrẹ́rẹ́</string>
   <string name="menu_read_aloud">Kika sita</string>
   <string name="menu_read_aloud_stop">Jawo ni bi ika sita</string>
   <string name="menu_support_kiwix">Igbaruku to kiwix</string>
@@ -194,7 +192,6 @@
   <string name="go_to_previous_page">Lọ si oju-iwe ti tẹlẹ</string>
   <string name="go_to_next_page">Lọ si oju-iwe ti o tẹle</string>
   <string name="table_of_contents">Atọka akoonu</string>
-  <string name="select_languages">Yan ede</string>
   <string name="save_languages">Fi awọn ede pamọ</string>
   <string name="expand">Fẹ̀hàn</string>
   <string name="history">Ìtàn</string>

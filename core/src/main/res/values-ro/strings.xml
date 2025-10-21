@@ -15,8 +15,6 @@
   <string name="menu_search_in_text">Găsește în pagină</string>
   <string name="bookmarks">Semn de carte</string>
   <string name="menu_random_article">Articol aleatoriu</string>
-  <string name="menu_full_screen">Ecran complet</string>
-  <string name="menu_exit_full_screen">Ieși din modul ecran complet</string>
   <string name="menu_read_aloud">Citește cu voce tare</string>
   <string name="menu_read_aloud_stop">Oprește citirea cu voce tare</string>
   <string name="menu_support_kiwix">Susține Kiwix</string>
@@ -216,7 +214,6 @@
   <string name="go_to_previous_page">Accesați pagina anterioară</string>
   <string name="go_to_next_page">Accesați pagina următoare</string>
   <string name="table_of_contents">Cuprins</string>
-  <string name="select_languages">Selectați limbile</string>
   <string name="save_languages">Salvează limbile</string>
   <string name="expand">Extinde</string>
   <string name="history">Istorie</string>

@@ -18,8 +18,12 @@
 
 package org.kiwix.kiwixmobile.core.ui.components
 
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -30,10 +34,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow.Companion.Ellipsis
 import org.kiwix.kiwixmobile.core.R
 import org.kiwix.kiwixmobile.core.utils.ComposeDimens
 
@@ -45,19 +52,25 @@ fun KiwixSearchView(
   searchViewTextFiledTestTag: String = "",
   clearButtonTestTag: String = "",
   onValueChange: (String) -> Unit,
-  onClearClick: () -> Unit
+  onClearClick: () -> Unit,
+  onKeyboardSubmitButtonClick: (String) -> Unit = {}
 ) {
+  val hintColor = if (isSystemInDarkTheme()) {
+    Color.LightGray
+  } else {
+    Color.Gray
+  }
+  val keyboardController = LocalSoftwareKeyboardController.current
   val colors = TextFieldDefaults.colors(
     focusedIndicatorColor = Color.Transparent,
     unfocusedIndicatorColor = Color.Transparent,
     focusedContainerColor = Color.Transparent,
     disabledContainerColor = Color.Transparent,
     unfocusedContainerColor = Color.Transparent,
-    focusedTextColor = Color.White
+    focusedTextColor = MaterialTheme.colorScheme.onBackground
   )
   val focusRequester = FocusRequester()
   SideEffect(focusRequester::requestFocus)
-
   TextField(
     modifier = modifier
       .testTag(searchViewTextFiledTestTag)
@@ -68,27 +81,32 @@ fun KiwixSearchView(
     placeholder = {
       Text(
         text = placeholder,
-        color = Color.LightGray,
-        fontSize = ComposeDimens.EIGHTEEN_SP
+        color = hintColor,
+        fontSize = ComposeDimens.EIGHTEEN_SP,
+        maxLines = ONE,
+        overflow = Ellipsis
       )
     },
     colors = colors,
-    textStyle = TextStyle.Default.copy(
-      fontSize = ComposeDimens.EIGHTEEN_SP
-    ),
-    onValueChange = {
-      onValueChange(it.replace("\n", ""))
-    },
+    textStyle = TextStyle.Default.copy(fontSize = ComposeDimens.EIGHTEEN_SP),
+    onValueChange = { onValueChange(it.replace("\n", "")) },
     trailingIcon = {
       if (value.isNotEmpty()) {
         IconButton(onClick = onClearClick, modifier = Modifier.testTag(clearButtonTestTag)) {
           Icon(
             painter = painterResource(R.drawable.ic_clear_white_24dp),
-            tint = Color.White,
+            tint = MaterialTheme.colorScheme.onBackground,
             contentDescription = stringResource(R.string.searchview_description_clear)
           )
         }
       }
-    }
+    },
+    keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
+    keyboardActions = KeyboardActions(
+      onDone = {
+        keyboardController?.hide()
+        onKeyboardSubmitButtonClick.invoke(value)
+      }
+    )
   )
 }

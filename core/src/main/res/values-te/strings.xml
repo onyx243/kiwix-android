@@ -15,8 +15,6 @@
   <string name="menu_search_in_text">పాఠ్యంలో వెతుకు</string>
   <string name="bookmarks">మడతపేజీలు</string>
   <string name="menu_random_article">యాదృచ్ఛిక వ్యాసం</string>
-  <string name="menu_full_screen">నిండుతెర</string>
-  <string name="menu_exit_full_screen">నిండుతెరను చాలించు</string>
   <string name="menu_read_aloud">బయటకి చదువు</string>
   <string name="menu_read_aloud_stop">బయటకి చదవడం ఆపివేయి</string>
   <string name="menu_support_kiwix">కివిక్స్కు మద్దతు ఇవ్వండి</string>
@@ -195,7 +193,6 @@
   <string name="go_to_previous_page">మునుపటి పేజీకి వెళ్లండి</string>
   <string name="go_to_next_page">తదుపరి పేజీకి వెళ్లండి</string>
   <string name="table_of_contents">విషయ సూచిక</string>
-  <string name="select_languages">భాషలను ఎంచుకోండి</string>
   <string name="save_languages">భాషలను సేవ్ చేయండి</string>
   <string name="expand">విస్తరించు</string>
   <string name="history">చరిత్ర</string>

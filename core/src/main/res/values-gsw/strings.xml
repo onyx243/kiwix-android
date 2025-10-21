@@ -11,8 +11,6 @@
   <string name="menu_search_in_text">I de Syte finde</string>
   <string name="bookmarks">Läsezeiche</string>
   <string name="menu_random_article">Zuefälligi Syte</string>
-  <string name="menu_full_screen">Vollbildschirm</string>
-  <string name="menu_exit_full_screen">Vollbildmodus beende</string>
   <string name="menu_read_aloud">Vorläse</string>
   <string name="menu_read_aloud_stop">Ufhöre vorläse</string>
   <string name="menu_support_kiwix">Kiwix unterstützä</string>
@@ -142,7 +140,6 @@
   <string name="go_to_previous_page">Zur vorherigä Syte gah</string>
   <string name="go_to_next_page">Zur nächschtä Syte gah</string>
   <string name="table_of_contents">Inhautsverzeichnis</string>
-  <string name="select_languages">Spraach uswähle</string>
   <string name="expand">Ufklappe</string>
   <string name="history">Verlouf</string>
   <string name="history_from_current_book">Verlouf vo allne Büecher aazeigä</string>

@@ -19,14 +19,19 @@
 package org.kiwix.kiwixmobile.main
 
 import android.view.View
-import androidx.test.espresso.Espresso.onView
-import androidx.test.espresso.action.ViewActions
-import androidx.test.espresso.matcher.ViewMatchers.withText
+import androidx.compose.ui.test.filter
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.junit4.ComposeContentTestRule
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.performClick
 import applyWithViewHierarchyPrinting
 import org.junit.Assert.assertEquals
 import org.kiwix.kiwixmobile.BaseRobot
 import org.kiwix.kiwixmobile.core.R
+import org.kiwix.kiwixmobile.core.main.CoreMainActivity
 import org.kiwix.kiwixmobile.core.main.KiwixWebView
+import org.kiwix.kiwixmobile.core.settings.DIALOG_PREFERENCE_ITEM_TESTING_TAG
 import org.kiwix.kiwixmobile.testutils.TestUtils.testFlakyView
 import org.kiwix.kiwixmobile.utils.StandardActions.enterSettings
 import org.kiwix.kiwixmobile.utils.StandardActions.openDrawer
@@ -35,20 +40,32 @@ fun darkModeViewPainter(func: DarkModeViewPainterRobot.() -> Unit) =
   DarkModeViewPainterRobot().applyWithViewHierarchyPrinting(func)
 
 class DarkModeViewPainterRobot : BaseRobot() {
-  fun openSettings() {
-    openDrawer()
-    enterSettings()
+  fun openSettings(coreMainActivity: CoreMainActivity, composeContentTest: ComposeContentTestRule) {
+    openDrawer(coreMainActivity)
+    enterSettings(composeContentTest)
   }
 
-  fun enableTheDarkMode() {
+  fun enableTheDarkMode(composeContentTest: ComposeContentTestRule) {
     testFlakyView({
-      onView(withText(R.string.on)).perform(ViewActions.click())
+      composeContentTest.apply {
+        waitForIdle()
+        onAllNodesWithTag(DIALOG_PREFERENCE_ITEM_TESTING_TAG)
+          .filter(hasContentDescription(context.getString(R.string.on)))
+          .onFirst()
+          .performClick()
+      }
     })
   }
 
-  fun enableTheLightMode() {
+  fun enableTheLightMode(composeContentTest: ComposeContentTestRule) {
     testFlakyView({
-      onView(withText(R.string.off)).perform(ViewActions.click())
+      composeContentTest.apply {
+        waitForIdle()
+        onAllNodesWithTag(DIALOG_PREFERENCE_ITEM_TESTING_TAG)
+          .filter(hasContentDescription(context.getString(R.string.off)))
+          .onFirst()
+          .performClick()
+      }
     })
   }
 

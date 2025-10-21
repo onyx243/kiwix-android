@@ -35,8 +35,10 @@ object ComposeDimens {
   // Error screen dimens
   val CRASH_IMAGE_SIZE = 70.dp
 
-  // KiwixAppBar(Toolbar) height
-  val KIWIX_APP_BAR_HEIGHT = 56.dp
+  // KiwixAppBar(Toolbar) dimens
+  val ACTION_MENU_TEXTVIEW_BUTTON_PADDING = 13.dp
+  val KIWIX_TOOLBAR_HEIGHT = 56.dp
+  val KIWIX_TOOLBAR_SHADOW_ELEVATION = 4.dp
 
   // Padding & Margins
   val SIXTY_DP = 60.dp
@@ -48,9 +50,11 @@ object ComposeDimens {
   val TWELVE_DP = 12.dp
   val TEN_DP = 10.dp
   val EIGHT_DP = 8.dp
+  val SEVEN_DP = 7.dp
   val SIX_DP = 6.dp
   val FIVE_DP = 5.dp
   val FOUR_DP = 4.dp
+  val THREE_DP = 3.dp
   val TWO_DP = 2.dp
   val ONE_DP = 1.dp
   val SEVENTY_DP = 70.dp
@@ -105,9 +109,6 @@ object ComposeDimens {
 
   // BookItem dimens
   val BOOK_ICON_SIZE = 48.dp
-
-  // LocalLibraryFragment dimens
-  val FAB_ICON_BOTTOM_MARGIN = 50.dp
 
   // HelpFragment dimens
   val HELP_SCREEN_DIVIDER_HEIGHT = 0.7.dp
@@ -169,4 +170,34 @@ object ComposeDimens {
   val DOWNLOADING_LIBRARY_MESSAGE_TEXT_SIZE = 8.sp
   val DOWNLOADING_LIBRARY_PROGRESSBAR_SIZE = 30.dp
   const val ONLINE_BOOK_DISABLED_COLOR_ALPHA = 0.5F
+
+  // Search screen dimens
+  val MINIMUM_HEIGHT_OF_SEARCH_ITEM = 64.dp
+  val SEARCH_ITEM_TEXT_SIZE = 16.sp
+  val LOAD_MORE_PROGRESS_BAR_SIZE = 40.dp
+
+  // Settings screen dimes
+  val STORAGE_LOADING_PROGRESS_BAR_SIZE = 40.dp
+  val CATEGORY_TITLE_TEXT_SIZE = 14.sp
+
+  // Reader screen dimens
+  val READER_BOTTOM_APP_BAR_LAYOUT_HEIGHT = 40.dp
+  val READER_BOTTOM_APP_BAR_BUTTON_ICON_SIZE = 30.dp
+  const val TTS_BUTTONS_CONTROL_ALPHA = 0.9f
+  val CLOSE_ALL_TAB_BUTTON_BOTTOM_PADDING = 24.dp
+  val TAB_SWITCHER_TEXT_SIZE = 12.sp
+  const val TAB_SWITCHER_ICON_CORNER_RADIUS = 10
+  val CLOSE_TAB_ICON_SIZE = 20.dp
+  const val CLOSE_TAB_ICON_ANIMATION_TIMEOUT = 1200L
+  val BACK_TO_TOP_BUTTON_BOTTOM_MARGIN = 80.dp
+  const val READER_BOTTOM_APP_BAR_DISABLE_BUTTON_ALPHA = 0.38f
+  val SEARCH_PLACEHOLDER_TEXT_SIZE = 12.sp
+  val DONATION_LAYOUT_MAXIMUM_WIDTH = 400.dp
+
+  // MainActivity dimens
+  val NAVIGATION_DRAWER_WIDTH = 280.dp
+
+  // Custom download screen dimens
+  val CUSTOM_DOWNLOAD_LAYOUT_TOP_MARGIN = 100.dp
+  val CUSTOM_DOWNLOAD_PROGRESS_BAR_WIDTH = 200.dp
 }

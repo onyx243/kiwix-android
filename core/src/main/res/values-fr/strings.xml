@@ -39,8 +39,6 @@
   <string name="menu_search_in_text">Trouver dans la page</string>
   <string name="bookmarks">Signets</string>
   <string name="menu_random_article">Article au hasard</string>
-  <string name="menu_full_screen">Plein écran</string>
-  <string name="menu_exit_full_screen">Sortir du mode plein écran</string>
   <string name="menu_read_aloud">Lire à haute voix</string>
   <string name="menu_read_aloud_stop">Arrêter de lire à haute voix</string>
   <string name="menu_support_kiwix">Soutenir Kiwix</string>
@@ -191,6 +189,7 @@
   <string name="no">Non</string>
   <string name="confirm_stop_download_title">Arrêter le téléchargement ?</string>
   <string name="confirm_stop_download_msg">Êtes-vous sûr(e) de vouloir arrêter ce téléchargement ?</string>
+  <string name="change_storage">Modifier</string>
   <string name="tts_not_enabled">La lecture à voix haute n’est pas activée pour ce fichier ZIM.</string>
   <string name="texttospeech_initialization_failed">L’initialisation de la lecture à voix haute a échoué. Veuillez réessayer.</string>
   <string name="texttospeech_error">Erreur inattendue dans la lecture à voix haute. Veuillez réessayer.</string>
@@ -212,6 +211,7 @@
   <string name="external_link_popup_dialog_message">Vous accédez à un lien externe. Cela peut engendrer des coûts supplémentaires pour le transfert de données ou ne fonctionnera tout simplement pas si vous êtes hors ligne. Voulez-vous continuer ?</string>
   <string name="do_not_ask_anymore">Ne plus demander</string>
   <string name="your_languages">Langues sélectionnées :</string>
+  <string name="your_language">Langue sélectionnée : %s</string>
   <string name="other_languages">Autres langues :</string>
   <string name="downloading">Téléchargement:</string>
   <string name="no_items_msg">Aucun élément disponible</string>
@@ -240,8 +240,10 @@
   <string name="go_to_previous_page">Aller à la page précédente</string>
   <string name="go_to_next_page">Aller à la page suivante</string>
   <string name="table_of_contents">Table des matières</string>
-  <string name="select_languages">Sélectionner les langues</string>
+  <string name="select_language">Sélectionner la langue</string>
   <string name="save_languages">Sauvegarder les langues</string>
+  <string name="all_languages">Toutes les langues</string>
+  <string name="no_language_available">Aucune langue disponible</string>
   <string name="expand">Étendre</string>
   <string name="history">Historique</string>
   <string name="history_from_current_book">Afficher l’historique de tous les livres</string>
@@ -413,4 +415,5 @@
   <string name="resuming_state">Reprend le travail…</string>
   <string name="downloading_state">Téléchargement en cours</string>
   <string name="download_failed_state">Échec</string>
+  <string name="searchview_description_clear">Effacer la requête</string>
 </resources>

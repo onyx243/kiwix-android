@@ -9,6 +9,7 @@
 * Sabelöga
 * Skalman
 * Susann Schweden
+* Teaparty
 * Technic2
 * Tommy Kronkvist
 * WikiPhoenix
@@ -20,8 +21,6 @@
   <string name="menu_search_in_text">Hitta på sidan</string>
   <string name="bookmarks">Bokmärken</string>
   <string name="menu_random_article">Slumpartikel</string>
-  <string name="menu_full_screen">Helskärm</string>
-  <string name="menu_exit_full_screen">Stäng helskärm</string>
   <string name="menu_read_aloud">Läs upp</string>
   <string name="menu_read_aloud_stop">Sluta läsa upp</string>
   <string name="menu_support_kiwix">Stöd Kiwix</string>
@@ -172,6 +171,7 @@
   <string name="no">Nej</string>
   <string name="confirm_stop_download_title">Stoppa nedladdning?</string>
   <string name="confirm_stop_download_msg">Är du säker på att du vill stoppa denna nedladdning?</string>
+  <string name="change_storage">Ändra</string>
   <string name="tts_not_enabled">Text-till-tal är inte aktiverat för denna ZIM-fil</string>
   <string name="texttospeech_initialization_failed">Misslyckades att initialisera text-till-tal. Var god försök igen</string>
   <string name="texttospeech_error">Oväntat fel uppstod för text-till-tal. Var god försök igen</string>
@@ -220,7 +220,6 @@
   <string name="go_to_previous_page">Gå till föregående sida</string>
   <string name="go_to_next_page">Gå till nästa sida</string>
   <string name="table_of_contents">Innehållsförteckning</string>
-  <string name="select_languages">Välj språk</string>
   <string name="save_languages">Spara språk</string>
   <string name="expand">Utvidga</string>
   <string name="history">Historik</string>

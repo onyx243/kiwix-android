@@ -20,178 +20,161 @@ package org.kiwix.kiwixmobile.custom.main
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.MenuItem
+import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.net.toUri
-import androidx.drawerlayout.widget.DrawerLayout
-import androidx.navigation.NavController
-import androidx.navigation.fragment.NavHostFragment
-import com.google.android.material.navigation.NavigationView
+import androidx.navigation.NavOptions
+import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import org.kiwix.kiwixmobile.core.CoreApp
 import org.kiwix.kiwixmobile.core.R.drawable
 import org.kiwix.kiwixmobile.core.R.string
-import org.kiwix.kiwixmobile.core.extensions.applyEdgeToEdgeInsets
+import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.setNavigationResultOnCurrent
 import org.kiwix.kiwixmobile.core.extensions.browserIntent
-import org.kiwix.kiwixmobile.core.extensions.getDialogHostComposeView
 import org.kiwix.kiwixmobile.core.main.ACTION_NEW_TAB
 import org.kiwix.kiwixmobile.core.main.CoreMainActivity
+import org.kiwix.kiwixmobile.core.main.DrawerMenuItem
+import org.kiwix.kiwixmobile.core.main.LEFT_DRAWER_ABOUT_APP_ITEM_TESTING_TAG
+import org.kiwix.kiwixmobile.core.main.LEFT_DRAWER_SUPPORT_ITEM_TESTING_TAG
 import org.kiwix.kiwixmobile.core.main.NEW_TAB_SHORTCUT_ID
-import org.kiwix.kiwixmobile.core.utils.dialog.AlertDialogShower
+import org.kiwix.kiwixmobile.core.main.PAGE_URL_KEY
+import org.kiwix.kiwixmobile.core.main.SHOULD_OPEN_IN_NEW_TAB
+import org.kiwix.kiwixmobile.core.main.ZIM_FILE_URI_KEY
+import org.kiwix.kiwixmobile.core.reader.ZimReaderSource
+import org.kiwix.kiwixmobile.core.utils.dialog.DialogHost
 import org.kiwix.kiwixmobile.custom.BuildConfig
+import org.kiwix.kiwixmobile.custom.CustomApp
 import org.kiwix.kiwixmobile.custom.R
 import org.kiwix.kiwixmobile.custom.customActivityComponent
-import org.kiwix.kiwixmobile.custom.databinding.ActivityCustomMainBinding
 
 class CustomMainActivity : CoreMainActivity() {
-  override val navController: NavController by lazy {
-    (
-      supportFragmentManager.findFragmentById(
-        R.id.custom_nav_controller
-      ) as NavHostFragment
-    )
-      .navController
-  }
-  override val drawerContainerLayout: DrawerLayout by lazy {
-    activityCustomMainBinding.customDrawerContainer
-  }
-  override val drawerNavView: NavigationView by lazy { activityCustomMainBinding.drawerNavView }
-  override val readerTableOfContentsDrawer: NavigationView by lazy {
-    activityCustomMainBinding.activityMainNavView
-  }
-
-  override val navHostContainer by lazy {
-    activityCustomMainBinding.customNavController
-  }
-
   override val mainActivity: AppCompatActivity by lazy { this }
   override val appName: String by lazy { getString(R.string.app_name) }
 
-  override val searchFragmentResId: Int = R.id.searchFragment
-  override val bookmarksFragmentResId: Int = R.id.bookmarksFragment
-  override val settingsFragmentResId: Int = R.id.customSettingsFragment
-  override val readerFragmentResId: Int = R.id.customReaderFragment
-  override val historyFragmentResId: Int = R.id.historyFragment
-  override val notesFragmentResId: Int = R.id.notesFragment
-  override val helpFragmentResId: Int = R.id.helpFragment
+  override val searchFragmentRoute: String = CustomDestination.Search.route
+  override val bookmarksFragmentRoute: String = CustomDestination.Bookmarks.route
+  override val settingsFragmentRoute: String = CustomDestination.Settings.route
+  override val readerFragmentRoute: String = CustomDestination.Reader.route
+  override val historyFragmentRoute: String = CustomDestination.History.route
+  override val notesFragmentRoute: String = CustomDestination.Notes.route
+  override val helpFragmentRoute: String = CustomDestination.Help.route
   override val cachedComponent by lazy { customActivityComponent }
-  override val topLevelDestinations =
-    setOf(R.id.customReaderFragment)
+  override val topLevelDestinationsRoute = setOf(CustomDestination.Reader.route)
 
-  lateinit var activityCustomMainBinding: ActivityCustomMainBinding
-
+  @Suppress("InjectDispatcher")
   override fun onCreate(savedInstanceState: Bundle?) {
     customActivityComponent.inject(this)
     super.onCreate(savedInstanceState)
-    activityCustomMainBinding = ActivityCustomMainBinding.inflate(layoutInflater)
-    setContentView(activityCustomMainBinding.root)
-    activityCustomMainBinding.root.applyEdgeToEdgeInsets()
-    if (savedInstanceState != null) {
-      return
+    setContent {
+      navController = rememberNavController()
+      leftDrawerState = rememberDrawerState(DrawerValue.Closed)
+      uiCoroutineScope = rememberCoroutineScope()
+      RestoreDrawerStateOnOrientationChange()
+      PersistDrawerStateOnChange()
+      CustomMainActivityScreen(
+        navController = navController,
+        leftDrawerContent = leftDrawerMenu,
+        topLevelDestinationsRoute = topLevelDestinationsRoute,
+        leftDrawerState = leftDrawerState,
+        enableLeftDrawer = enableLeftDrawer.value,
+        uiCoroutineScope = uiCoroutineScope,
+        customBackHandler = customBackHandler
+      )
+      DialogHost(alertDialogShower)
     }
-  }
-
-  override fun onStart() {
-    super.onStart()
-    navController.addOnDestinationChangedListener { _, destination, _ ->
-      if (destination.id !in topLevelDestinations) {
-        handleDrawerOnNavigation()
+    // run the migration on background thread to avoid any UI related issues.
+    CoroutineScope(Dispatchers.IO).launch {
+      if (!sharedPreferenceUtil.prefIsTest) {
+        (applicationContext as CustomApp).customComponent
+          .provideObjectBoxDataMigrationHandler()
+          .migrate()
       }
-    }
-  }
-
-  override fun setupDrawerToggle(toolbar: Toolbar, shouldEnableRightDrawer: Boolean) {
-    super.setupDrawerToggle(toolbar, shouldEnableRightDrawer)
-    activityCustomMainBinding.drawerNavView.apply {
-      /**
-       * Hide the 'ZimHostFragment' option from the navigation menu
-       * because we are now using fd (FileDescriptor)
-       * to read the zim file from the asset folder. Currently,
-       * 'KiwixServer' is unable to host zim files via fd.
-       * This feature is temporarily removed for custom apps.
-       * We will re-enable it for custom apps once the issue is resolved.
-       * For more info see https://github.com/kiwix/kiwix-android/pull/3516,
-       * https://github.com/kiwix/kiwix-android/issues/4026
-       */
-      menu.findItem(org.kiwix.kiwixmobile.core.R.id.menu_host_books)?.isVisible = false
-      /**
-       * Hide the `HelpFragment` from custom apps.
-       * We have not removed the relevant code for `HelpFragment` from custom apps.
-       * If, in the future, we need to display this for all/some custom apps,
-       * we can either remove the line below or configure it according to the requirements.
-       * For more information, see https://github.com/kiwix/kiwix-android/issues/3584
-       */
-      menu.findItem(org.kiwix.kiwixmobile.core.R.id.menu_help)?.isVisible = false
-
-      /**
-       * If custom app is configured to show the "About app_name app" in navigation
-       * then show it navigation. "app_name" will be replaced with custom app name.
-       */
-      if (BuildConfig.ABOUT_APP_URL.isNotEmpty()) {
-        menu.findItem(org.kiwix.kiwixmobile.core.R.id.menu_about_app)?.apply {
-          title = getString(
-            org.kiwix.kiwixmobile.core.R.string.menu_about_app,
-            getString(R.string.app_name)
-          )
-          isVisible = true
-        }
-      }
-
-      /**
-       * If custom app is configured to show the "Support app_name" in navigation
-       * then show it navigation. "app_name" will be replaced with custom app name.
-       */
-      if (BuildConfig.SUPPORT_URL.isNotEmpty()) {
-        menu.findItem(org.kiwix.kiwixmobile.core.R.id.menu_support_kiwix)?.apply {
-          title =
-            getString(
-              org.kiwix.kiwixmobile.core.R.string.menu_support_kiwix_for_custom_apps,
-              getString(R.string.app_name)
-            )
-          isVisible = true
-        }
-      } else {
-        /**
-         * If custom app is not configured to show the "Support app_name" in navigation
-         * then hide it from navigation.
-         */
-        menu.findItem(org.kiwix.kiwixmobile.core.R.id.menu_support_kiwix)?.isVisible = false
-      }
-      setNavigationItemSelectedListener { item ->
-        closeNavigationDrawer()
-        onNavigationItemSelected(item)
-      }
-    }
-  }
-
-  /**
-   * Overrides the method to configure the click behavior of the "About the app"
-   * and "Support URL" features. When the "About the app" and "Support URL"
-   * are enabled in a custom app, this function handles those clicks.
-   */
-  override fun onNavigationItemSelected(item: MenuItem): Boolean {
-    return when (item.itemId) {
-      org.kiwix.kiwixmobile.core.R.id.menu_about_app -> {
-        if (BuildConfig.ABOUT_APP_URL.isNotEmpty()) {
-          externalLinkOpener.openExternalUrl(BuildConfig.ABOUT_APP_URL.toUri().browserIntent())
-        }
-        true
-      }
-
-      org.kiwix.kiwixmobile.core.R.id.menu_support_kiwix -> {
-        if (BuildConfig.SUPPORT_URL.isNotEmpty()) {
-          externalLinkOpener.openExternalUrl(BuildConfig.SUPPORT_URL.toUri().browserIntent(), false)
-        }
-        true
-      }
-
-      else -> super.onNavigationItemSelected(item)
     }
   }
 
   override fun getIconResId() = R.mipmap.ic_launcher
+
+  /**
+   * Hide the 'ZimHostFragment' option from the navigation menu
+   * because we are now using fd (FileDescriptor)
+   * to read the zim file from the asset folder. Currently,
+   * 'KiwixServer' is unable to host zim files via fd.
+   * This feature is temporarily removed for custom apps.
+   * We will re-enable it for custom apps once the issue is resolved.
+   * For more info see https://github.com/kiwix/kiwix-android/pull/3516,
+   * https://github.com/kiwix/kiwix-android/issues/4026
+   */
+  override val zimHostDrawerMenuItem: DrawerMenuItem? = null
+
+  /**
+   * Hide the `HelpFragment` from custom apps.
+   * We have not removed the relevant code for `HelpFragment` from custom apps.
+   * If, in the future, we need to display this for all/some custom apps,
+   * we can either remove the line below or configure it according to the requirements.
+   * For more information, see https://github.com/kiwix/kiwix-android/issues/3584
+   */
+  override val helpDrawerMenuItem: DrawerMenuItem? = null
+
+  override val supportDrawerMenuItem: DrawerMenuItem? =
+    /**
+     * If custom app is configured to show the "Support app_name" in navigation
+     * then show it navigation. "app_name" will be replaced with custom app name.
+     */
+    if (BuildConfig.SUPPORT_URL.isNotEmpty()) {
+      DrawerMenuItem(
+        title = CoreApp.instance.getString(
+          string.menu_support_kiwix_for_custom_apps,
+          CoreApp.instance.getString(R.string.app_name)
+        ),
+        iconRes = drawable.ic_support_24px,
+        true,
+        onClick = {
+          closeNavigationDrawer()
+          externalLinkOpener.openExternalUrl(BuildConfig.SUPPORT_URL.toUri().browserIntent(), false)
+        },
+        testingTag = LEFT_DRAWER_SUPPORT_ITEM_TESTING_TAG
+      )
+    } else {
+      /**
+       * If custom app is not configured to show the "Support app_name" in navigation
+       * then remove it from navigation.
+       */
+      null
+    }
+
+  /**
+   * If custom app is configured to show the "About app_name app" in navigation
+   * then show it navigation. "app_name" will be replaced with custom app name.
+   */
+  override val aboutAppDrawerMenuItem: DrawerMenuItem? =
+    if (BuildConfig.ABOUT_APP_URL.isNotEmpty()) {
+      DrawerMenuItem(
+        title = CoreApp.instance.getString(
+          string.menu_about_app,
+          CoreApp.instance.getString(R.string.app_name)
+        ),
+        iconRes = drawable.ic_baseline_info,
+        true,
+        onClick = {
+          closeNavigationDrawer()
+          externalLinkOpener.openExternalUrl(
+            BuildConfig.ABOUT_APP_URL.toUri().browserIntent(),
+            false
+          )
+        },
+        testingTag = LEFT_DRAWER_ABOUT_APP_ITEM_TESTING_TAG
+      )
+    } else {
+      null
+    }
 
   override fun createApplicationShortcuts() {
     // Remove previously added dynamic shortcuts for old ids if any found.
@@ -211,8 +194,44 @@ class CustomMainActivity : CoreMainActivity() {
     ShortcutManagerCompat.addDynamicShortcuts(this, listOf(newTabShortcut))
   }
 
-  override fun setDialogHostToActivity(alertDialogShower: AlertDialogShower) {
-    activityCustomMainBinding.root.addView(getDialogHostComposeView(alertDialogShower), 0)
+  override fun openSearch(searchString: String, isOpenedFromTabView: Boolean, isVoice: Boolean) {
+    navigate(
+      CustomDestination.Search.createRoute(
+        searchString = searchString,
+        isOpenedFromTabView = isOpenedFromTabView,
+        isVoice = isVoice
+      ),
+      NavOptions.Builder().setPopUpTo(searchFragmentRoute, inclusive = true).build()
+    )
+  }
+
+  override fun openPage(
+    pageUrl: String,
+    zimReaderSource: ZimReaderSource?,
+    shouldOpenInNewTab: Boolean
+  ) {
+    var zimFileUri = ""
+    if (zimReaderSource != null) {
+      zimFileUri = zimReaderSource.toDatabase()
+    }
+    val navOptions = NavOptions.Builder()
+      .setLaunchSingleTop(true)
+      .setPopUpTo(readerFragmentRoute, inclusive = true)
+      .build()
+    // Navigate to reader screen.
+    navigate(CustomDestination.Reader.route, navOptions)
+    // Set arguments on current destination(reader).
+    setNavigationResultOnCurrent(zimFileUri, ZIM_FILE_URI_KEY)
+    setNavigationResultOnCurrent(pageUrl, PAGE_URL_KEY)
+    setNavigationResultOnCurrent(shouldOpenInNewTab, SHOULD_OPEN_IN_NEW_TAB)
+  }
+
+  override fun hideBottomAppBar() {
+    // Do nothing since custom apps does not have the bottomAppBar.
+  }
+
+  override fun showBottomAppBar() {
+    // Do nothing since custom apps does not have the bottomAppBar.
   }
 
   // Outdated shortcut id(new_tab)

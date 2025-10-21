@@ -15,8 +15,6 @@
   <string name="menu_search_in_text">Pele de bıvêne</string>
   <string name="bookmarks">Nişani</string>
   <string name="menu_random_article">Nuşteyo raştameye</string>
-  <string name="menu_full_screen">Tam asenge</string>
-  <string name="menu_exit_full_screen">Tam asenge ra bıvıciye</string>
   <string name="menu_read_aloud">Be veng ra bıwane</string>
   <string name="menu_read_aloud_stop">Bevengrawendış caverde</string>
   <string name="menu_support_kiwix">Peşti bıdê be Kiwix’i</string>
@@ -186,8 +184,8 @@
   <string name="go_to_previous_page">Şo pela verêne</string>
   <string name="go_to_next_page">Şo pela peyên</string>
   <string name="table_of_contents">Tabloy zerreki</string>
-  <string name="select_languages">Zıwan weçine</string>
   <string name="save_languages">Zıwana qeyd kerê</string>
+  <string name="all_languages">Zıwani pêro</string>
   <string name="expand">Hera kerê</string>
   <string name="history">Veror</string>
   <string name="history_from_current_book">Kıtaba pêroyın ra verori bımocne</string>

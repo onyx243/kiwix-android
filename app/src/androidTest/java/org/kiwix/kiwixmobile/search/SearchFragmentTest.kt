@@ -18,14 +18,14 @@
 package org.kiwix.kiwixmobile.search
 
 import android.os.Build
+import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
-import androidx.navigation.fragment.NavHostFragment
+import androidx.navigation.NavOptions
 import androidx.preference.PreferenceManager
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.accessibility.AccessibilityChecks
-import androidx.test.espresso.matcher.ViewMatchers
 import androidx.test.espresso.matcher.ViewMatchers.withContentDescription
 import androidx.test.internal.runner.junit4.statement.UiThreadStatement
 import androidx.test.platform.app.InstrumentationRegistry
@@ -46,20 +46,21 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.kiwix.kiwixmobile.BaseActivityTest
-import org.kiwix.kiwixmobile.R
-import org.kiwix.kiwixmobile.core.R.id
+import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.setNavigationResultOnCurrent
+import org.kiwix.kiwixmobile.core.main.ZIM_FILE_URI_KEY
 import org.kiwix.kiwixmobile.core.search.SearchFragment
 import org.kiwix.kiwixmobile.core.search.viewmodel.Action
 import org.kiwix.kiwixmobile.core.utils.LanguageUtils.Companion.handleLocaleChange
 import org.kiwix.kiwixmobile.core.utils.SharedPreferenceUtil
+import org.kiwix.kiwixmobile.core.utils.TestingUtils.COMPOSE_TEST_RULE_ORDER
 import org.kiwix.kiwixmobile.core.utils.TestingUtils.RETRY_RULE_ORDER
 import org.kiwix.kiwixmobile.main.KiwixMainActivity
-import org.kiwix.kiwixmobile.nav.destination.library.local.LocalLibraryFragmentDirections.actionNavigationLibraryToNavigationReader
 import org.kiwix.kiwixmobile.testutils.RetryRule
 import org.kiwix.kiwixmobile.testutils.TestUtils
 import org.kiwix.kiwixmobile.testutils.TestUtils.closeSystemDialogs
 import org.kiwix.kiwixmobile.testutils.TestUtils.getOkkHttpClientForTesting
 import org.kiwix.kiwixmobile.testutils.TestUtils.isSystemUINotRespondingDialogVisible
+import org.kiwix.kiwixmobile.ui.KiwixDestination
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
@@ -72,6 +73,9 @@ class SearchFragmentTest : BaseActivityTest() {
   @Rule(order = RETRY_RULE_ORDER)
   @JvmField
   val retryRule = RetryRule()
+
+  @get:Rule(order = COMPOSE_TEST_RULE_ORDER)
+  val composeTestRule = createComposeRule()
 
   private lateinit var kiwixMainActivity: KiwixMainActivity
   private lateinit var uiDevice: UiDevice
@@ -117,10 +121,6 @@ class SearchFragmentTest : BaseActivityTest() {
         anyOf(
           allOf(
             matchesCheck(TouchTargetSizeCheck::class.java),
-            matchesViews(ViewMatchers.withId(id.menu_searchintext))
-          ),
-          allOf(
-            matchesCheck(TouchTargetSizeCheck::class.java),
             matchesViews(
               withContentDescription("More options")
             )
@@ -135,42 +135,46 @@ class SearchFragmentTest : BaseActivityTest() {
   fun searchFragmentSimple() {
     activityScenario.onActivity {
       kiwixMainActivity = it
-      kiwixMainActivity.navigate(R.id.libraryFragment)
+      kiwixMainActivity.navigate(KiwixDestination.Library.route)
     }
     testZimFile = getTestZimFile()
     openKiwixReaderFragmentWithFile(testZimFile)
-    search { checkZimFileSearchSuccessful(R.id.readerFragment) }
+    search { checkZimFileSearchSuccessful(composeTestRule) }
     openSearchWithQuery("Android", testZimFile)
     search {
-      clickOnSearchItemInSearchList()
-      checkZimFileSearchSuccessful(R.id.readerFragment)
+      clickOnSearchItemInSearchList(composeTestRule)
+      checkZimFileSearchSuccessful(composeTestRule)
     }
 
     openSearchWithQuery(zimFile = testZimFile)
     search {
       // test with fast typing/deleting
-      searchWithFrequentlyTypedWords(searchUnitTestingQuery)
-      assertSearchSuccessful(searchUnitTestResult)
-      deleteSearchedQueryFrequently(searchUnitTestingQuery, uiDevice)
+      searchWithFrequentlyTypedWords(searchUnitTestingQuery, composeTestRule = composeTestRule)
+      assertSearchSuccessful(searchUnitTestResult, composeTestRule)
+      deleteSearchedQueryFrequently(
+        searchUnitTestingQuery,
+        uiDevice,
+        composeTestRule = composeTestRule
+      )
 
       // test with a short delay typing/deleting to
       // properly test the cancelling of previously searching task
-      searchWithFrequentlyTypedWords(searchUnitTestingQuery, 50)
-      assertSearchSuccessful(searchUnitTestResult)
-      deleteSearchedQueryFrequently(searchUnitTestingQuery, uiDevice, 50)
+      searchWithFrequentlyTypedWords(searchUnitTestingQuery, 50, composeTestRule)
+      assertSearchSuccessful(searchUnitTestResult, composeTestRule)
+      deleteSearchedQueryFrequently(searchUnitTestingQuery, uiDevice, 50, composeTestRule)
 
       // test with a long delay typing/deleting to
       // properly execute the search query letter by letter
-      searchWithFrequentlyTypedWords(searchUnitTestingQuery, 300)
-      assertSearchSuccessful(searchUnitTestResult)
-      deleteSearchedQueryFrequently(searchUnitTestingQuery, uiDevice, 300)
+      searchWithFrequentlyTypedWords(searchUnitTestingQuery, 300, composeTestRule)
+      assertSearchSuccessful(searchUnitTestResult, composeTestRule)
+      deleteSearchedQueryFrequently(searchUnitTestingQuery, uiDevice, 300, composeTestRule)
       // to close the keyboard
       pressBack()
       // go to reader screen
       pressBack()
     }
 
-    UiThreadStatement.runOnUiThread { kiwixMainActivity.navigate(R.id.libraryFragment) }
+    UiThreadStatement.runOnUiThread { kiwixMainActivity.navigate(KiwixDestination.Library.route) }
     // test with a large ZIM file to properly test the scenario
     downloadingZimFile = getDownloadingZimFile()
     getOkkHttpClientForTesting().newCall(downloadRequest()).execute().use { response ->
@@ -186,43 +190,50 @@ class SearchFragmentTest : BaseActivityTest() {
       }
     }
     openKiwixReaderFragmentWithFile(downloadingZimFile)
-    search { checkZimFileSearchSuccessful(R.id.readerFragment) }
+    search { checkZimFileSearchSuccessful(composeTestRule) }
     openSearchWithQuery(zimFile = downloadingZimFile)
     search {
       // test with fast typing/deleting
-      searchWithFrequentlyTypedWords(searchQueryForDownloadedZimFile)
-      assertSearchSuccessful(searchResultForDownloadedZimFile)
-      deleteSearchedQueryFrequently(searchQueryForDownloadedZimFile, uiDevice)
+      searchWithFrequentlyTypedWords(
+        searchQueryForDownloadedZimFile,
+        composeTestRule = composeTestRule
+      )
+      assertSearchSuccessful(searchResultForDownloadedZimFile, composeTestRule)
+      deleteSearchedQueryFrequently(
+        searchQueryForDownloadedZimFile,
+        uiDevice,
+        composeTestRule = composeTestRule
+      )
 
       // test with a short delay typing/deleting to
       // properly test the cancelling of previously searching task
-      searchWithFrequentlyTypedWords(searchQueryForDownloadedZimFile, 50)
-      assertSearchSuccessful(searchResultForDownloadedZimFile)
-      deleteSearchedQueryFrequently(searchQueryForDownloadedZimFile, uiDevice, 50)
+      searchWithFrequentlyTypedWords(searchQueryForDownloadedZimFile, 50, composeTestRule)
+      assertSearchSuccessful(searchResultForDownloadedZimFile, composeTestRule)
+      deleteSearchedQueryFrequently(searchQueryForDownloadedZimFile, uiDevice, 50, composeTestRule)
 
       // test with a long delay typing/deleting to
       // properly execute the search query letter by letter
-      searchWithFrequentlyTypedWords(searchQueryForDownloadedZimFile, 300)
-      assertSearchSuccessful(searchResultForDownloadedZimFile)
-      deleteSearchedQueryFrequently(searchQueryForDownloadedZimFile, uiDevice, 300)
+      searchWithFrequentlyTypedWords(searchQueryForDownloadedZimFile, 300, composeTestRule)
+      assertSearchSuccessful(searchResultForDownloadedZimFile, composeTestRule)
+      deleteSearchedQueryFrequently(searchQueryForDownloadedZimFile, uiDevice, 300, composeTestRule)
       // open the reader fragment for next text case.
-      openKiwixReaderFragmentWithFile(downloadingZimFile)
+      clickOnNavigationIcon(composeTestRule)
     }
 
     // Added test for checking the crash scenario where the application was crashing when we
     // frequently searched for article, and clicked on the searched item.
     search {
       // test by searching 10 article and clicking on them
-      searchAndClickOnArticle(searchQueryForDownloadedZimFile)
-      searchAndClickOnArticle("A Song")
-      searchAndClickOnArticle("The Ra")
-      searchAndClickOnArticle("The Ge")
-      searchAndClickOnArticle("Wish")
-      searchAndClickOnArticle("WIFI")
-      searchAndClickOnArticle("Woman")
-      searchAndClickOnArticle("Big Ba")
-      searchAndClickOnArticle("My Wor")
-      searchAndClickOnArticle("100")
+      searchAndClickOnArticle(searchQueryForDownloadedZimFile, composeTestRule)
+      searchAndClickOnArticle("A Song", composeTestRule)
+      searchAndClickOnArticle("The Ra", composeTestRule)
+      searchAndClickOnArticle("The Ge", composeTestRule)
+      searchAndClickOnArticle("Wish", composeTestRule)
+      searchAndClickOnArticle("WIFI", composeTestRule)
+      searchAndClickOnArticle("Woman", composeTestRule)
+      searchAndClickOnArticle("Big Ba", composeTestRule)
+      searchAndClickOnArticle("My Wor", composeTestRule)
+      searchAndClickOnArticle("100", composeTestRule)
       assertArticleLoaded()
     }
     removeTemporaryZimFilesToFreeUpDeviceStorage()
@@ -249,8 +260,9 @@ class SearchFragmentTest : BaseActivityTest() {
         )
       activityScenario.onActivity {
         kiwixMainActivity = it
-        kiwixMainActivity.navigate(R.id.libraryFragment)
+        kiwixMainActivity.navigate(KiwixDestination.Library.route)
       }
+      composeTestRule.waitForIdle()
       downloadingZimFile = getDownloadingZimFile()
       getOkkHttpClientForTesting().newCall(downloadRequest()).execute().use { response ->
         if (response.isSuccessful) {
@@ -265,36 +277,36 @@ class SearchFragmentTest : BaseActivityTest() {
         }
       }
       openKiwixReaderFragmentWithFile(downloadingZimFile)
-      search { checkZimFileSearchSuccessful(R.id.readerFragment) }
+      composeTestRule.waitForIdle()
+      search { checkZimFileSearchSuccessful(composeTestRule) }
       openSearchWithQuery(searchTerms[0], downloadingZimFile)
       // wait for searchFragment become visible on screen.
       delay(2000)
-      val navHostFragment: NavHostFragment =
-        kiwixMainActivity.supportFragmentManager
-          .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
-      val searchFragment = navHostFragment.childFragmentManager.fragments[0] as SearchFragment
+      val searchFragment = kiwixMainActivity.supportFragmentManager.fragments
+        .filterIsInstance<SearchFragment>()
+        .firstOrNull()
       for (i in 1..100) {
         // This will execute the render method 100 times frequently.
         val searchTerm = searchTerms[i % searchTerms.size]
-        searchFragment.searchViewModel.actions.trySend(Action.Filter(searchTerm)).isSuccess
+        searchFragment?.searchViewModel?.actions?.trySend(Action.Filter(searchTerm))?.isSuccess
       }
       for (i in 1..100) {
         // this will execute the render method 100 times with 100MS delay.
         delay(100)
         val searchTerm = searchTerms[i % searchTerms.size]
-        searchFragment.searchViewModel.actions.trySend(Action.Filter(searchTerm)).isSuccess
+        searchFragment?.searchViewModel?.actions?.trySend(Action.Filter(searchTerm))?.isSuccess
       }
       for (i in 1..100) {
         // this will execute the render method 100 times with 200MS delay.
         delay(200)
         val searchTerm = searchTerms[i % searchTerms.size]
-        searchFragment.searchViewModel.actions.trySend(Action.Filter(searchTerm)).isSuccess
+        searchFragment?.searchViewModel?.actions?.trySend(Action.Filter(searchTerm))?.isSuccess
       }
       for (i in 1..100) {
         // this will execute the render method 100 times with 200MS delay.
         delay(300)
         val searchTerm = searchTerms[i % searchTerms.size]
-        searchFragment.searchViewModel.actions.trySend(Action.Filter(searchTerm)).isSuccess
+        searchFragment?.searchViewModel?.actions?.trySend(Action.Filter(searchTerm))?.isSuccess
       }
     }
 
@@ -304,10 +316,13 @@ class SearchFragmentTest : BaseActivityTest() {
 
   private fun openKiwixReaderFragmentWithFile(zimFile: File) {
     UiThreadStatement.runOnUiThread {
-      kiwixMainActivity.navigate(
-        actionNavigationLibraryToNavigationReader()
-          .apply { zimFileUri = zimFile.toUri().toString() }
-      )
+      val navOptions = NavOptions.Builder()
+        .setPopUpTo(KiwixDestination.Reader.route, false)
+        .build()
+      kiwixMainActivity.apply {
+        kiwixMainActivity.navigate(KiwixDestination.Reader.route, navOptions)
+        setNavigationResultOnCurrent(zimFile.toUri().toString(), ZIM_FILE_URI_KEY)
+      }
     }
   }
 

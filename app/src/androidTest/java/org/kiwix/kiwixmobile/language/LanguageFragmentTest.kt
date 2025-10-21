@@ -43,6 +43,8 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.kiwix.kiwixmobile.core.R
+import org.kiwix.kiwixmobile.core.main.CoreMainActivity
 import org.kiwix.kiwixmobile.core.utils.LanguageUtils.Companion.handleLocaleChange
 import org.kiwix.kiwixmobile.core.utils.SharedPreferenceUtil
 import org.kiwix.kiwixmobile.core.utils.TestingUtils.COMPOSE_TEST_RULE_ORDER
@@ -50,8 +52,10 @@ import org.kiwix.kiwixmobile.core.utils.TestingUtils.RETRY_RULE_ORDER
 import org.kiwix.kiwixmobile.download.downloadRobot
 import org.kiwix.kiwixmobile.main.KiwixMainActivity
 import org.kiwix.kiwixmobile.testutils.RetryRule
+import org.kiwix.kiwixmobile.testutils.TestUtils
 import org.kiwix.kiwixmobile.testutils.TestUtils.closeSystemDialogs
 import org.kiwix.kiwixmobile.testutils.TestUtils.isSystemUINotRespondingDialogVisible
+import org.kiwix.kiwixmobile.testutils.TestUtils.waitUntilTimeout
 import org.kiwix.kiwixmobile.utils.StandardActions
 
 @LargeTest
@@ -75,6 +79,7 @@ class LanguageFragmentTest {
   var permissionRules: GrantPermissionRule =
     GrantPermissionRule.grant(*permissions)
 
+  lateinit var kiwixMainActivity: KiwixMainActivity
   private val instrumentation: Instrumentation by lazy(InstrumentationRegistry::getInstrumentation)
 
   init {
@@ -104,6 +109,7 @@ class LanguageFragmentTest {
       .edit {
         putBoolean(SharedPreferenceUtil.PREF_SHOW_INTRO, false)
         putBoolean(SharedPreferenceUtil.PREF_WIFI_ONLY, false)
+        putBoolean(SharedPreferenceUtil.PREF_IS_TEST, true)
         putString(SharedPreferenceUtil.PREF_LANG, "en")
         putLong(
           SharedPreferenceUtil.PREF_LAST_DONATION_POPUP_SHOWN_IN_MILLISECONDS,
@@ -113,6 +119,7 @@ class LanguageFragmentTest {
     ActivityScenario.launch(KiwixMainActivity::class.java).apply {
       moveToState(Lifecycle.State.RESUMED)
       onActivity {
+        kiwixMainActivity = it
         handleLocaleChange(
           it,
           "en",
@@ -124,40 +131,15 @@ class LanguageFragmentTest {
 
   @Test
   fun testLanguageFragment() {
-    StandardActions.closeDrawer() // close the drawer if open before running the test cases.
+    StandardActions.closeDrawer(kiwixMainActivity as CoreMainActivity) // close the drawer if open before running the test cases.
     downloadRobot {
-      clickDownloadOnBottomNav()
+      clickDownloadOnBottomNav(composeTestRule)
       waitForDataToLoad(composeTestRule = composeTestRule)
     }
     language {
       // search and de-select if german language already selected
       clickOnLanguageIcon(composeTestRule)
-      clickOnLanguageSearchIcon(composeTestRule)
-      searchLanguage(
-        composeTestRule = composeTestRule,
-        searchLanguage = "german"
-      )
-      deSelectLanguageIfAlreadySelected(
-        composeTestRule = composeTestRule,
-        matchLanguage = "German"
-      )
-      clickOnSaveLanguageIcon(composeTestRule)
-
-      // search and de-select if italian language already selected
-      clickOnLanguageIcon(composeTestRule)
-      clickOnLanguageSearchIcon(composeTestRule)
-      searchLanguage(
-        composeTestRule = composeTestRule,
-        searchLanguage = "italiano"
-      )
-      deSelectLanguageIfAlreadySelected(
-        composeTestRule = composeTestRule,
-        matchLanguage = "Italian"
-      )
-      clickOnSaveLanguageIcon(composeTestRule)
-
-      // Search and save language for german
-      clickOnLanguageIcon(composeTestRule)
+      waitForLanguageToLoad(composeTestRule)
       clickOnLanguageSearchIcon(composeTestRule)
       searchLanguage(
         composeTestRule = composeTestRule,
@@ -168,9 +150,18 @@ class LanguageFragmentTest {
         matchLanguage = "German"
       )
       clickOnSaveLanguageIcon(composeTestRule)
+      // test if the selected language filter is applied on the online library or not.
+      downloadRobot {
+        composeTestRule.waitUntilTimeout(TestUtils.TEST_PAUSE_MS_FOR_DOWNLOAD_TEST.toLong())
+        waitForDataToLoad(composeTestRule = composeTestRule)
+        checkLanguageFilterAppliedToOnlineContent(
+          composeTestRule,
+          context.getString(R.string.your_language, "German")
+        )
+      }
 
-      // Search and save language for italian
       clickOnLanguageIcon(composeTestRule)
+      waitForLanguageToLoad(composeTestRule)
       clickOnLanguageSearchIcon(composeTestRule)
       searchLanguage(
         composeTestRule = composeTestRule,
@@ -182,31 +173,15 @@ class LanguageFragmentTest {
       )
       clickOnSaveLanguageIcon(composeTestRule)
 
-      // verify is german language selected
-      clickOnLanguageIcon(composeTestRule)
-      clickOnLanguageSearchIcon(composeTestRule)
-      searchLanguage(
-        composeTestRule = composeTestRule,
-        searchLanguage = "german"
-      )
-      checkIsLanguageSelected(
-        composeTestRule = composeTestRule,
-        matchLanguage = "German"
-      )
-      clickOnSaveLanguageIcon(composeTestRule)
-
-      // verify is italian language selected
-      clickOnLanguageIcon(composeTestRule)
-      clickOnLanguageSearchIcon(composeTestRule)
-      searchLanguage(
-        composeTestRule = composeTestRule,
-        searchLanguage = "italiano"
-      )
-      checkIsLanguageSelected(
-        composeTestRule = composeTestRule,
-        matchLanguage = "Italian"
-      )
-      clickOnSaveLanguageIcon(composeTestRule)
+      // test if the selected language filter is applied on the online library or not.
+      downloadRobot {
+        composeTestRule.waitUntilTimeout(TestUtils.TEST_PAUSE_MS_FOR_DOWNLOAD_TEST.toLong())
+        waitForDataToLoad(composeTestRule = composeTestRule)
+        checkLanguageFilterAppliedToOnlineContent(
+          composeTestRule,
+          context.getString(R.string.your_language, "Italian")
+        )
+      }
     }
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
       LeakAssertions.assertNoLeaks()

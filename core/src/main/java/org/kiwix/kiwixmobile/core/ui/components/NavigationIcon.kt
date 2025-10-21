@@ -23,13 +23,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
 import org.kiwix.kiwixmobile.core.R
 import org.kiwix.kiwixmobile.core.ui.models.IconItem
 import org.kiwix.kiwixmobile.core.ui.models.toPainter
 import org.kiwix.kiwixmobile.core.ui.theme.White
+
+const val NAVIGATION_ICON_TESTING_TAG = "navigationIconTestingTag"
 
 /**
  * A composable function that renders a navigation icon, which can be either a vector
@@ -47,13 +53,30 @@ fun NavigationIcon(
   iconItem: IconItem = IconItem.Vector(Icons.AutoMirrored.Filled.ArrowBack),
   onClick: () -> Unit,
   @StringRes contentDescription: Int = R.string.toolbar_back_button_content_description,
-  iconTint: Color = White
+  iconTint: Color = White,
+  testingTag: String = NAVIGATION_ICON_TESTING_TAG
 ) {
-  IconButton(onClick = onClick) {
+  IconButton(onClick = onClick, modifier = Modifier.semantics { testTag = testingTag }) {
     Icon(
       painter = iconItem.toPainter(),
       contentDescription = stringResource(contentDescription),
-      tint = iconTint
+      tint = getNavigationIconTintColor(iconTint)
     )
   }
 }
+
+/**
+ * Returns the navigationIcon color.
+ *
+ * If iconTint is set as [Color.Unspecified] then return that color. Because it is set to show
+ * the actual color of image or icon set on navigation icon.
+ *
+ * Otherwise: return the navigationIcon color according to theme.
+ */
+@Composable
+private fun getNavigationIconTintColor(iconTint: Color): Color =
+  if (iconTint == Color.Unspecified) {
+    iconTint
+  } else {
+    MaterialTheme.colorScheme.onBackground
+  }

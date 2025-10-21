@@ -19,7 +19,9 @@ package org.kiwix.kiwixmobile.help
 
 import android.os.Build
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
+import androidx.preference.PreferenceManager
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.IdlingRegistry
 import androidx.test.espresso.accessibility.AccessibilityChecks
@@ -31,7 +33,6 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.kiwix.kiwixmobile.BaseActivityTest
-import org.kiwix.kiwixmobile.R
 import org.kiwix.kiwixmobile.core.utils.LanguageUtils.Companion.handleLocaleChange
 import org.kiwix.kiwixmobile.core.utils.SharedPreferenceUtil
 import org.kiwix.kiwixmobile.core.utils.TestingUtils.COMPOSE_TEST_RULE_ORDER
@@ -40,6 +41,7 @@ import org.kiwix.kiwixmobile.main.KiwixMainActivity
 import org.kiwix.kiwixmobile.testutils.RetryRule
 import org.kiwix.kiwixmobile.testutils.TestUtils.closeSystemDialogs
 import org.kiwix.kiwixmobile.testutils.TestUtils.isSystemUINotRespondingDialogVisible
+import org.kiwix.kiwixmobile.ui.KiwixDestination
 import org.kiwix.kiwixmobile.utils.KiwixIdlingResource
 
 class HelpFragmentTest : BaseActivityTest() {
@@ -59,6 +61,11 @@ class HelpFragmentTest : BaseActivityTest() {
         closeSystemDialogs(context, this)
       }
       waitForIdle()
+    }
+    PreferenceManager.getDefaultSharedPreferences(
+      InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+    ).edit {
+      putBoolean(SharedPreferenceUtil.PREF_IS_TEST, true)
     }
     activityScenario =
       ActivityScenario.launch(KiwixMainActivity::class.java).apply {
@@ -83,7 +90,7 @@ class HelpFragmentTest : BaseActivityTest() {
   fun verifyHelpActivity() {
     setShowCopyMoveToPublicDirectory(false)
     activityScenario.onActivity {
-      it.navigate(R.id.helpFragment)
+      it.navigate(KiwixDestination.Help.route)
     }
     help {
       clickOnWhatDoesKiwixDo(composeTestRule)
@@ -105,7 +112,7 @@ class HelpFragmentTest : BaseActivityTest() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
       setShowCopyMoveToPublicDirectory(true)
       activityScenario.onActivity {
-        it.navigate(R.id.helpFragment)
+        it.navigate(KiwixDestination.Help.route)
       }
       help {
         clickOnWhatDoesKiwixDo(composeTestRule)

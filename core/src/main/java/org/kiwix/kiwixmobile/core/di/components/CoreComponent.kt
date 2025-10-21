@@ -25,24 +25,18 @@ import dagger.BindsInstance
 import dagger.Component
 import kotlinx.coroutines.sync.Mutex
 import org.kiwix.kiwixmobile.core.CoreApp
+import org.kiwix.kiwixmobile.core.LibkiwixBookFactory
 import org.kiwix.kiwixmobile.core.StorageObserver
 import org.kiwix.kiwixmobile.core.dao.DownloadRoomDao
-import org.kiwix.kiwixmobile.core.dao.HistoryDao
 import org.kiwix.kiwixmobile.core.dao.HistoryRoomDao
+import org.kiwix.kiwixmobile.core.dao.LibkiwixBookOnDisk
 import org.kiwix.kiwixmobile.core.dao.LibkiwixBookmarks
-import org.kiwix.kiwixmobile.core.dao.NewBookDao
-import org.kiwix.kiwixmobile.core.dao.NewBookmarksDao
-import org.kiwix.kiwixmobile.core.dao.NewLanguagesDao
-import org.kiwix.kiwixmobile.core.dao.NewNoteDao
-import org.kiwix.kiwixmobile.core.dao.NewRecentSearchDao
 import org.kiwix.kiwixmobile.core.dao.NotesRoomDao
 import org.kiwix.kiwixmobile.core.dao.RecentSearchRoomDao
 import org.kiwix.kiwixmobile.core.dao.WebViewHistoryRoomDao
 import org.kiwix.kiwixmobile.core.data.DataModule
 import org.kiwix.kiwixmobile.core.data.DataSource
 import org.kiwix.kiwixmobile.core.data.remote.KiwixService
-import org.kiwix.kiwixmobile.core.data.remote.ObjectBoxToLibkiwixMigrator
-import org.kiwix.kiwixmobile.core.data.remote.ObjectBoxToRoomMigrator
 import org.kiwix.kiwixmobile.core.di.modules.ApplicationModule
 import org.kiwix.kiwixmobile.core.di.modules.CoreViewModelModule
 import org.kiwix.kiwixmobile.core.di.modules.JNIModule
@@ -56,7 +50,6 @@ import org.kiwix.kiwixmobile.core.main.KiwixWebView
 import org.kiwix.kiwixmobile.core.reader.ZimFileReader
 import org.kiwix.kiwixmobile.core.reader.ZimReaderContainer
 import org.kiwix.kiwixmobile.core.search.viewmodel.SearchResultGenerator
-import org.kiwix.kiwixmobile.core.settings.CoreSettingsFragment
 import org.kiwix.kiwixmobile.core.utils.BookUtils
 import org.kiwix.kiwixmobile.core.utils.SharedPreferenceUtil
 import javax.inject.Singleton
@@ -85,26 +78,20 @@ interface CoreComponent {
   fun zimReaderContainer(): ZimReaderContainer
   fun sharedPrefUtil(): SharedPreferenceUtil
   fun zimFileReaderFactory(): ZimFileReader.Factory
+  fun libkiwixBookFactory(): LibkiwixBookFactory
   fun storageObserver(): StorageObserver
   fun kiwixService(): KiwixService
   fun application(): Application
   fun bookUtils(): BookUtils
   fun dataSource(): DataSource
-  fun newBookDao(): NewBookDao
-  fun historyDao(): HistoryDao
-  fun noteDao(): NewNoteDao
-  fun newLanguagesDao(): NewLanguagesDao
-  fun recentSearchDao(): NewRecentSearchDao
   fun downloadRoomDao(): DownloadRoomDao
-  fun newBookmarksDao(): NewBookmarksDao
   fun connectivityManager(): ConnectivityManager
-  fun objectBoxToLibkiwixMigrator(): ObjectBoxToLibkiwixMigrator
   fun libkiwixBookmarks(): LibkiwixBookmarks
+  fun libkiwixBooks(): LibkiwixBookOnDisk
   fun recentSearchRoomDao(): RecentSearchRoomDao
   fun historyRoomDao(): HistoryRoomDao
   fun webViewHistoryRoomDao(): WebViewHistoryRoomDao
   fun noteRoomDao(): NotesRoomDao
-  fun objectBoxToRoomMigrator(): ObjectBoxToRoomMigrator
   fun context(): Context
   fun downloader(): Downloader
   fun notificationManager(): NotificationManager
@@ -116,9 +103,5 @@ interface CoreComponent {
   fun inject(kiwixWebView: KiwixWebView)
 
   fun inject(errorActivity: ErrorActivity)
-  fun inject(objectBoxToLibkiwixMigrator: ObjectBoxToLibkiwixMigrator)
-  fun inject(objectBoxToRoomMigrator: ObjectBoxToRoomMigrator)
-
-  fun inject(settingsFragment: CoreSettingsFragment)
   fun coreServiceComponent(): CoreServiceComponent.Builder
 }

@@ -18,9 +18,9 @@
 
 package org.kiwix.kiwixmobile.core.ui.components
 
-import androidx.annotation.StringRes
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -28,45 +28,45 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
-import org.kiwix.kiwixmobile.core.downloader.downloadManager.ZERO
 import org.kiwix.kiwixmobile.core.ui.models.ActionMenuItem
 import org.kiwix.kiwixmobile.core.ui.models.toPainter
-import org.kiwix.kiwixmobile.core.ui.theme.Black
 import org.kiwix.kiwixmobile.core.ui.theme.KiwixTheme
-import org.kiwix.kiwixmobile.core.ui.theme.MineShaftGray350
-import org.kiwix.kiwixmobile.core.ui.theme.White
+import org.kiwix.kiwixmobile.core.utils.ComposeDimens.KIWIX_TOOLBAR_SHADOW_ELEVATION
 import org.kiwix.kiwixmobile.core.utils.ComposeDimens.SIXTEEN_DP
 
 const val TOOLBAR_TITLE_TESTING_TAG = "toolbarTitle"
+const val OVERFLOW_MENU_BUTTON_TESTING_TAG = "overflowMenuButtonTestingTag"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KiwixAppBar(
-  @StringRes titleId: Int,
+  modifier: Modifier = Modifier,
+  title: String,
   navigationIcon: @Composable () -> Unit,
   actionMenuItems: List<ActionMenuItem> = emptyList(),
   topAppBarScrollBehavior: TopAppBarScrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(),
@@ -75,18 +75,19 @@ fun KiwixAppBar(
 ) {
   KiwixTheme {
     TopAppBar(
-      title = { AppBarTitleSection(titleId, searchBar) },
+      title = { AppBarTitleSection(title, searchBar) },
       navigationIcon = navigationIcon,
       actions = { ActionMenu(actionMenuItems) },
       scrollBehavior = topAppBarScrollBehavior,
       colors = TopAppBarDefaults.topAppBarColors(
-        containerColor = Black,
-        scrolledContainerColor = Black
+        containerColor = MaterialTheme.colorScheme.onPrimary,
+        scrolledContainerColor = MaterialTheme.colorScheme.onPrimary
       ),
       // Edge-to-Edge mode is already enabled in our application,
       // so we don't need to apply additional top insets.
       // This prevents unwanted extra margin at the top.
-      windowInsets = WindowInsets.statusBars.only(WindowInsetsSides.Horizontal)
+      windowInsets = WindowInsets.statusBars.only(WindowInsetsSides.Horizontal),
+      modifier = modifier.shadow(KIWIX_TOOLBAR_SHADOW_ELEVATION)
     )
   }
 }
@@ -94,7 +95,7 @@ fun KiwixAppBar(
 @Suppress("ComposableLambdaParameterNaming")
 @Composable
 private fun AppBarTitleSection(
-  @StringRes titleId: Int,
+  title: String,
   searchBar: (@Composable () -> Unit)? = null
 ) {
   Box(
@@ -106,23 +107,18 @@ private fun AppBarTitleSection(
     searchBar?.let {
       it()
     } ?: run {
-      AppBarTitle(titleId)
+      AppBarTitle(title)
     }
   }
 }
 
 @Composable
 private fun AppBarTitle(
-  @StringRes titleId: Int
+  title: String
 ) {
-  val appBarTitleColor = if (isSystemInDarkTheme()) {
-    MineShaftGray350
-  } else {
-    White
-  }
   Text(
-    text = stringResource(titleId),
-    color = appBarTitleColor,
+    text = title,
+    color = MaterialTheme.colorScheme.onBackground,
     style = MaterialTheme.typography.titleMedium,
     overflow = TextOverflow.Ellipsis,
     maxLines = 1,
@@ -133,39 +129,94 @@ private fun AppBarTitle(
 
 @Composable
 private fun ActionMenu(actionMenuItems: List<ActionMenuItem>) {
+  var overflowExpanded by remember { mutableStateOf(false) }
+
   Row {
-    actionMenuItems.forEach { menuItem ->
+    val (mainActions, overflowActions) = actionMenuItems.partition { !it.isInOverflow }
+    MainMenuItems(mainActions)
+    if (overflowActions.isNotEmpty()) {
       IconButton(
-        enabled = menuItem.isEnabled,
-        onClick = menuItem.onClick,
-        modifier = menuItem.modifier.testTag(menuItem.testingTag)
+        onClick = { overflowExpanded = true },
+        modifier = Modifier.testTag(OVERFLOW_MENU_BUTTON_TESTING_TAG)
       ) {
         Icon(
-          painter = menuItem.icon.toPainter(),
-          contentDescription = stringResource(menuItem.contentDescription),
-          tint = if (menuItem.isEnabled) menuItem.iconTint else Color.Gray
+          imageVector = Icons.Default.MoreVert,
+          contentDescription = null,
+          tint = MaterialTheme.colorScheme.onBackground
         )
+      }
+    }
+    OverflowMenuItems(overflowExpanded, overflowActions) { overflowExpanded = false }
+  }
+}
+
+@Composable
+private fun MainMenuItems(mainActions: List<ActionMenuItem>) {
+  mainActions.forEach { menuItem ->
+    val modifier = menuItem.modifier.testTag(menuItem.testingTag)
+    menuItem.customView?.let { customComposable ->
+      Box(modifier = modifier.clickable(enabled = menuItem.isEnabled) { menuItem.onClick() }) {
+        customComposable()
+      }
+    } ?: run {
+      menuItem.icon?.let { iconItem ->
+        IconButton(
+          enabled = menuItem.isEnabled,
+          onClick = menuItem.onClick,
+          modifier = modifier
+        ) {
+          Icon(
+            painter = iconItem.toPainter(),
+            contentDescription = stringResource(menuItem.contentDescription),
+            tint = if (menuItem.isEnabled) MaterialTheme.colorScheme.onBackground else Color.Gray
+          )
+        }
+      } ?: run {
+        TextButton(
+          enabled = menuItem.isEnabled,
+          onClick = menuItem.onClick,
+          modifier = modifier
+        ) {
+          Text(
+            text = menuItem.iconButtonText.uppercase(),
+            color = if (menuItem.isEnabled) MaterialTheme.colorScheme.onBackground else Color.Gray,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+          )
+        }
       }
     }
   }
 }
 
 @Composable
-fun rememberBottomNavigationVisibility(lazyListState: LazyListState?): Boolean {
-  var isToolbarVisible by remember { mutableStateOf(true) }
-  var lastScrollIndex by remember { mutableIntStateOf(ZERO) }
-  val updatedLazyListState = rememberUpdatedState(lazyListState)
-
-  LaunchedEffect(updatedLazyListState) {
-    updatedLazyListState.value?.let { state ->
-      snapshotFlow { state.firstVisibleItemIndex }
-        .collect { newScrollIndex ->
-          if (newScrollIndex != lastScrollIndex) {
-            isToolbarVisible = newScrollIndex < lastScrollIndex
-            lastScrollIndex = newScrollIndex
+private fun OverflowMenuItems(
+  overflowExpanded: Boolean,
+  overflowActions: List<ActionMenuItem>,
+  onDismiss: () -> Unit
+) {
+  DropdownMenu(
+    expanded = overflowExpanded,
+    onDismissRequest = onDismiss
+  ) {
+    overflowActions.forEachIndexed { index, menuItem ->
+      DropdownMenuItem(
+        text = {
+          Column {
+            Text(
+              text = menuItem.iconButtonText.ifEmpty {
+                stringResource(id = menuItem.contentDescription)
+              }
+            )
           }
-        }
+        },
+        onClick = {
+          onDismiss()
+          menuItem.onClick()
+        },
+        enabled = menuItem.isEnabled,
+        modifier = Modifier.testTag(menuItem.testingTag)
+      )
     }
   }
-  return isToolbarVisible
 }

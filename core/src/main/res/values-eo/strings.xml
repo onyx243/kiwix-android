@@ -10,6 +10,7 @@
 * Mirin
 * MohitMali
 * Robin van der Vliet
+* Stefangrotz
 -->
 <resources>
   <string name="menu_help">Helpo</string>
@@ -18,8 +19,6 @@
   <string name="menu_search_in_text">Trovi en paĝo</string>
   <string name="bookmarks">Legosignoj</string>
   <string name="menu_random_article">Hazarda artikolo</string>
-  <string name="menu_full_screen">Plenekrane</string>
-  <string name="menu_exit_full_screen">Eliri plenekranan reĝimon</string>
   <string name="menu_read_aloud">Laŭtlegi</string>
   <string name="menu_read_aloud_stop">Ĉesi laŭtlegadon</string>
   <string name="menu_support_kiwix">Subteni Kiwix</string>
@@ -94,7 +93,7 @@
   <string name="no_network_connection">Reta konekto mankas</string>
   <string name="help_2">Kion faras Kiwix?</string>
   <string name="help_3">Kiwix estas senkonekta legilo de enhavo. Ĝi estas simila al TTT-legilo, sed anstataŭ legi retpaĝojn konektite, ĝi legas enhavon en ZIM-dosiero.</string>
-  <string name="help_4">Kiwix estis originale farita por senkonekta legado de Vikipedio, sed ĝi povas legi alian enhavon.</string>
+  <string name="help_4">Kiwix estis originale farita por eksterreta legado de Vikipedio, sed ĝi povas legi alian enhavon.</string>
   <string name="help_5">Kie estas la enhavo?</string>
   <string name="help_6">La Kiwix-retejo gastigas nian enhavon.</string>
   <string name="help_7">Ili estas haveblaj kiel ZIM-dosieroj. Jen multe da ili:</string>
@@ -158,7 +157,6 @@
   <string name="go_to_previous_page">Iri al antaŭa paĝo</string>
   <string name="go_to_next_page">Iri al sekva paĝo</string>
   <string name="table_of_contents">Enhavtabelo</string>
-  <string name="select_languages">Elekti lingvojn</string>
   <string name="save_languages">Konservi lingvojn</string>
   <string name="expand">Etendi</string>
   <string name="history">Historio</string>

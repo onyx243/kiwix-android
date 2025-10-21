@@ -20,9 +20,6 @@ object Libs {
     "org.jetbrains.kotlinx:kotlinx-coroutines-android:" +
       Versions.org_jetbrains_kotlinx_kotlinx_coroutines
 
-  const val kotlinx_coroutines_rx3: String =
-    "org.jetbrains.kotlinx:kotlinx-coroutines-rx3:" + Versions.kotlinx_coroutines_rx3
-
   /**
    * https://github.com/Kotlin/kotlinx.coroutines
    */
@@ -69,7 +66,7 @@ object Libs {
   /**
    * https://github.com/square/retrofit
    */
-  const val adapter_rxjava2: String = "com.squareup.retrofit2:adapter-rxjava2:" +
+  const val converter_scalars: String = "com.squareup.retrofit2:converter-scalars:" +
     Versions.com_squareup_retrofit2
 
   /**
@@ -190,11 +187,6 @@ object Libs {
   const val objectbox_kotlin: String = "io.objectbox:objectbox-kotlin:" + Versions.io_objectbox
 
   /**
-   * https://objectbox.io
-   */
-  const val objectbox_rxjava: String = "io.objectbox:objectbox-rxjava:" + Versions.io_objectbox
-
-  /**
    * http://mockk.io
    */
   const val mockk: String = "io.mockk:mockk:" + Versions.io_mockk
@@ -302,11 +294,6 @@ object Libs {
   const val appcompat: String = "androidx.appcompat:appcompat:" + Versions.appcompat
 
   /**
-   * https://github.com/ReactiveX/RxAndroid
-   */
-  const val rxandroid: String = "io.reactivex.rxjava2:rxandroid:" + Versions.rxandroid
-
-  /**
    * https://developer.android.com/jetpack/androidx
    */
   const val core_ktx: String = "androidx.core:core-ktx:" + Versions.core_ktx
@@ -328,11 +315,6 @@ object Libs {
   const val barista: String = "com.adevinta.android:barista:" + Versions.barista
 
   /**
-   * https://github.com/ReactiveX/RxJava
-   */
-  const val rxjava: String = "io.reactivex.rxjava2:rxjava:" + Versions.rxjava
-
-  /**
    * https://developer.android.com/jetpack/androidx
    */
   const val webkit: String = "androidx.webkit:webkit:" + Versions.webkit
@@ -347,8 +329,6 @@ object Libs {
   const val roomCompiler = "androidx.room:room-compiler:" + Versions.roomVersion
 
   const val roomRuntime = "androidx.room:room-runtime:" + Versions.roomVersion
-
-  const val roomRxjava2 = "androidx.room:room-rxjava2:" + Versions.roomVersion
 
   /**
    * https://github.com/zxing/zxing
@@ -387,9 +367,11 @@ object Libs {
 
   const val COMPOSE_UI_MANIFEST = "androidx.compose.ui:ui-test-manifest:${Versions.COMPOSE_VERSION}"
 
-  const val COMPOSE_RX_JAVA2 =
-    "androidx.compose.runtime:runtime-rxjava2:${Versions.COMPOSE_VERSION}"
-
   const val COMPOSE_LIVE_DATA =
     "androidx.compose.runtime:runtime-livedata:${Versions.COMPOSE_VERSION}"
+
+  const val COIL3_COMPOSE = "io.coil-kt.coil3:coil-compose:${Versions.COIL_COMPOSE}"
+  const val COIL3_OKHTTP_COMPOSE = "io.coil-kt.coil3:coil-network-okhttp:${Versions.COIL_COMPOSE}"
+  const val COMPOSE_NAVIGATION =
+    "androidx.navigation:navigation-compose:${Versions.COMPOSE_NAVIGATION}"
 }

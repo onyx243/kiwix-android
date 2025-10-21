@@ -41,6 +41,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import org.kiwix.kiwixmobile.core.CoreApp.Companion.coreComponent
 import org.kiwix.kiwixmobile.core.CoreApp.Companion.instance
 import org.kiwix.kiwixmobile.core.R
@@ -73,8 +74,7 @@ import javax.inject.Inject
  * Notes are saved as text files at location: "{External Storage}/Kiwix/Notes/ZimFileName/ArticleUrl.txt"
  */
 
-const val DISABLE_ICON_ITEM_ALPHA = 130
-const val ENABLE_ICON_ITEM_ALPHA = 255
+const val ADD_NOTE_DIALOG_CLOSE_IMAGE_BUTTON_TESTING_TAG = "addNoteDialogCloseImageButtonTestingTag"
 
 class AddNoteDialog : DialogFragment() {
   private lateinit var zimId: String
@@ -182,7 +182,8 @@ class AddNoteDialog : DialogFragment() {
             onClick = {
               exitAddNoteDialog()
               closeKeyboard()
-            }
+            },
+            testingTag = ADD_NOTE_DIALOG_CLOSE_IMAGE_BUTTON_TESTING_TAG
           )
         },
         noteText = noteText.value,
@@ -401,41 +402,45 @@ class AddNoteDialog : DialogFragment() {
     }
 
   private fun addNoteToDao(noteFilePath: String?, title: String) {
-    noteFilePath?.let { filePath ->
-      if (filePath.isNotEmpty() && zimFileUrl.isNotEmpty()) {
-        val noteToSave = NoteListItem(
-          zimId = zimId,
-          title = title,
-          url = zimFileUrl,
-          noteFilePath = noteFilePath,
-          zimReaderSource = zimReaderSource,
-          favicon = favicon,
-        )
-        mainRepositoryActions.saveNote(noteToSave)
-      } else {
-        Log.d(TAG, "Cannot process with empty zim url or noteFilePath")
+    lifecycleScope.launch {
+      noteFilePath?.let { filePath ->
+        if (filePath.isNotEmpty() && zimFileUrl.isNotEmpty()) {
+          val noteToSave = NoteListItem(
+            zimId = zimId,
+            title = title,
+            url = zimFileUrl,
+            noteFilePath = noteFilePath,
+            zimReaderSource = zimReaderSource,
+            favicon = favicon,
+          )
+          mainRepositoryActions.saveNote(noteToSave)
+        } else {
+          Log.d(TAG, "Cannot process with empty zim url or noteFilePath")
+        }
       }
     }
   }
 
   private fun deleteNote() {
-    val notesFolder = File(zimNotesDirectory)
-    val noteFile =
-      File(notesFolder.absolutePath, "$articleNoteFileName.txt")
-    val noteDeleted = noteFile.delete()
-    val editedNoteText = noteText.value.text
-    if (noteDeleted) {
-      noteText.value = TextFieldValue("")
-      mainRepositoryActions.deleteNote(getNoteTitle())
-      disableMenuItems()
-      snackBarHostState.snack(
-        message = requireActivity().getString(R.string.note_delete_successful),
-        actionLabel = requireActivity().getString(R.string.undo),
-        actionClick = { restoreDeletedNote(editedNoteText) },
-        lifecycleScope = lifecycleScope
-      )
-    } else {
-      context.toast(R.string.note_delete_unsuccessful, Toast.LENGTH_LONG)
+    lifecycleScope.launch {
+      val notesFolder = File(zimNotesDirectory)
+      val noteFile =
+        File(notesFolder.absolutePath, "$articleNoteFileName.txt")
+      val noteDeleted = noteFile.delete()
+      val editedNoteText = noteText.value.text
+      if (noteDeleted) {
+        noteText.value = TextFieldValue("")
+        mainRepositoryActions.deleteNote(getNoteTitle())
+        disableMenuItems()
+        snackBarHostState.snack(
+          message = requireActivity().getString(R.string.note_delete_successful),
+          actionLabel = requireActivity().getString(R.string.undo),
+          actionClick = { restoreDeletedNote(editedNoteText) },
+          lifecycleScope = lifecycleScope
+        )
+      } else {
+        context.toast(R.string.note_delete_unsuccessful, Toast.LENGTH_LONG)
+      }
     }
   }
 
@@ -514,7 +519,6 @@ class AddNoteDialog : DialogFragment() {
 
   override fun onDestroyView() {
     super.onDestroyView()
-    mainRepositoryActions.dispose()
     onBackPressedCallBack.remove()
   }
 

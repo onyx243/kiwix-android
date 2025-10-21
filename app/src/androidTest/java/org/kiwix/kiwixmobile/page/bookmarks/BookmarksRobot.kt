@@ -23,31 +23,42 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDisplayed
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.junit4.ComposeTestRule
+import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
-import androidx.test.espresso.Espresso.onView
-import androidx.test.espresso.action.ViewActions.click
-import androidx.test.espresso.action.ViewActions.longClick
-import androidx.test.espresso.matcher.ViewMatchers.withId
-import androidx.test.espresso.matcher.ViewMatchers.withText
+import androidx.compose.ui.test.performTouchInput
+import androidx.test.espresso.web.sugar.Web
+import androidx.test.espresso.web.sugar.Web.onWebView
+import androidx.test.espresso.web.webdriver.DriverAtoms
+import androidx.test.espresso.web.webdriver.DriverAtoms.findElement
+import androidx.test.espresso.web.webdriver.DriverAtoms.webClick
+import androidx.test.espresso.web.webdriver.Locator
 import applyWithViewHierarchyPrinting
 import com.adevinta.android.barista.interaction.BaristaSleepInteractions
 import org.kiwix.kiwixmobile.BaseRobot
-import org.kiwix.kiwixmobile.Findable.ViewId
 import org.kiwix.kiwixmobile.core.R
+import org.kiwix.kiwixmobile.core.main.CoreMainActivity
+import org.kiwix.kiwixmobile.core.main.LEFT_DRAWER_BOOKMARK_ITEM_TESTING_TAG
+import org.kiwix.kiwixmobile.core.main.reader.READER_BOTTOM_BAR_BOOKMARK_BUTTON_TESTING_TAG
+import org.kiwix.kiwixmobile.core.main.reader.READER_BOTTOM_BAR_PREVIOUS_SCREEN_BUTTON_TESTING_TAG
 import org.kiwix.kiwixmobile.core.page.DELETE_MENU_ICON_TESTING_TAG
 import org.kiwix.kiwixmobile.core.page.NO_ITEMS_TEXT_TESTING_TAG
+import org.kiwix.kiwixmobile.core.page.PAGE_ITEM_TESTING_TAG
 import org.kiwix.kiwixmobile.core.page.PAGE_LIST_TEST_TAG
 import org.kiwix.kiwixmobile.core.page.SWITCH_TEXT_TESTING_TAG
 import org.kiwix.kiwixmobile.core.page.bookmark.adapter.LibkiwixBookmarkItem
 import org.kiwix.kiwixmobile.core.utils.dialog.ALERT_DIALOG_CONFIRM_BUTTON_TESTING_TAG
 import org.kiwix.kiwixmobile.core.utils.dialog.ALERT_DIALOG_TITLE_TEXT_TESTING_TAG
+import org.kiwix.kiwixmobile.main.BOTTOM_NAV_READER_ITEM_TESTING_TAG
 import org.kiwix.kiwixmobile.testutils.TestUtils
+import org.kiwix.kiwixmobile.testutils.TestUtils.TEST_PAUSE_MS
+import org.kiwix.kiwixmobile.testutils.TestUtils.TEST_PAUSE_MS_FOR_DOWNLOAD_TEST
 import org.kiwix.kiwixmobile.testutils.TestUtils.testFlakyView
+import org.kiwix.kiwixmobile.testutils.TestUtils.waitUntilTimeout
 import org.kiwix.kiwixmobile.utils.StandardActions.openDrawer
-import java.util.concurrent.TimeUnit
 
 fun bookmarks(func: BookmarksRobot.() -> Unit) =
   BookmarksRobot().applyWithViewHierarchyPrinting(func)
@@ -100,23 +111,44 @@ class BookmarksRobot : BaseRobot() {
     }
   }
 
-  fun clickOnSaveBookmarkImage() {
-    pauseForBetterTestPerformance()
-    clickOn(ViewId(R.id.bottom_toolbar_bookmark))
+  fun clickOnSaveBookmarkImage(composeTestRule: ComposeContentTestRule) {
+    composeTestRule.apply {
+      waitForIdle()
+      waitUntilTimeout()
+      waitUntil(TEST_PAUSE_MS_FOR_DOWNLOAD_TEST.toLong()) {
+        onNodeWithTag(READER_BOTTOM_BAR_BOOKMARK_BUTTON_TESTING_TAG).isDisplayed()
+      }
+      onNodeWithTag(READER_BOTTOM_BAR_BOOKMARK_BUTTON_TESTING_TAG)
+        .performClick()
+    }
   }
 
-  fun longClickOnSaveBookmarkImage() {
-    // wait for disappearing the snack-bar after removing the bookmark
-    BaristaSleepInteractions.sleep(5L, TimeUnit.SECONDS)
-    testFlakyView({ onView(withId(R.id.bottom_toolbar_bookmark)).perform(longClick()) })
+  fun longClickOnSaveBookmarkImage(
+    composeTestRule: ComposeContentTestRule,
+    timeout: Long = TEST_PAUSE_MS.toLong()
+  ) {
+    composeTestRule.apply {
+      waitForIdle()
+      // wait for disappearing the snack-bar after removing the bookmark
+      waitUntilTimeout(timeout)
+      waitUntil(TEST_PAUSE_MS_FOR_DOWNLOAD_TEST.toLong()) {
+        onNodeWithTag(READER_BOTTOM_BAR_BOOKMARK_BUTTON_TESTING_TAG).isDisplayed()
+      }
+      onNodeWithTag(READER_BOTTOM_BAR_BOOKMARK_BUTTON_TESTING_TAG)
+        .performTouchInput {
+          longClick()
+        }
+    }
   }
 
   fun assertBookmarkSaved(composeTestRule: ComposeContentTestRule) {
     pauseForBetterTestPerformance()
-    composeTestRule.apply {
-      waitForIdle()
-      composeTestRule.onNodeWithText("Test Zim").assertExists()
-    }
+    testFlakyView({
+      composeTestRule.apply {
+        waitForIdle()
+        onNodeWithText("Test Zim").assertExists()
+      }
+    })
   }
 
   fun assertBookmarkRemoved(composeTestRule: ComposeTestRule) {
@@ -131,10 +163,17 @@ class BookmarksRobot : BaseRobot() {
     BaristaSleepInteractions.sleep(TestUtils.TEST_PAUSE_MS_FOR_SEARCH_TEST.toLong())
   }
 
-  fun openBookmarkScreen() {
+  fun openBookmarkScreen(
+    coreMainActivity: CoreMainActivity,
+    composeTestRule: ComposeContentTestRule
+  ) {
     testFlakyView({
-      openDrawer()
-      onView(withText(R.string.bookmarks)).perform(click())
+      composeTestRule.waitForIdle()
+      openDrawer(coreMainActivity)
+      composeTestRule.apply {
+        waitUntilTimeout()
+        onNodeWithTag(LEFT_DRAWER_BOOKMARK_ITEM_TESTING_TAG).performClick()
+      }
     })
   }
 
@@ -152,5 +191,76 @@ class BookmarksRobot : BaseRobot() {
         })
       }
     }
+  }
+
+  fun assertZimFileLoadedIntoTheReader(composeTestRule: ComposeContentTestRule) {
+    composeTestRule.apply {
+      composeTestRule.apply {
+        waitUntilTimeout()
+        onNodeWithTag(BOTTOM_NAV_READER_ITEM_TESTING_TAG).performClick()
+      }
+    }
+    testFlakyView({
+      Web.onWebView()
+        .withElement(
+          DriverAtoms.findElement(
+            Locator.XPATH,
+            "//*[contains(text(), 'Android_(operating_system)')]"
+          )
+        )
+    })
+  }
+
+  fun clickOnAndroidArticle(composeTestRule: ComposeContentTestRule) {
+    testFlakyView({
+      composeTestRule.apply {
+        waitForIdle()
+        onWebView()
+          .withElement(
+            findElement(
+              Locator.XPATH,
+              "//*[contains(text(), 'Android_(operating_system)')]"
+            )
+          )
+          .perform(webClick())
+      }
+    })
+  }
+
+  fun assertAndroidArticleLoadedInReader(composeTestRule: ComposeContentTestRule) {
+    testFlakyView({
+      composeTestRule.apply {
+        waitForIdle()
+        onWebView()
+          .withElement(
+            findElement(
+              Locator.XPATH,
+              "//*[contains(text(), 'History')]"
+            )
+          )
+      }
+    })
+  }
+
+  fun clickOnBackwardButton(composeTestRule: ComposeContentTestRule) {
+    composeTestRule.apply {
+      waitForIdle()
+      // wait for disappearing the snack-bar after removing the bookmark
+      waitUntilTimeout(TEST_PAUSE_MS_FOR_DOWNLOAD_TEST.toLong())
+      waitUntil(TEST_PAUSE_MS_FOR_DOWNLOAD_TEST.toLong()) {
+        onNodeWithTag(READER_BOTTOM_BAR_PREVIOUS_SCREEN_BUTTON_TESTING_TAG).isDisplayed()
+      }
+      onNodeWithTag(READER_BOTTOM_BAR_PREVIOUS_SCREEN_BUTTON_TESTING_TAG)
+        .performClick()
+    }
+  }
+
+  fun openBookmarkInReader(composeTestRule: ComposeContentTestRule) {
+    testFlakyView({
+      composeTestRule.apply {
+        waitForIdle()
+        onAllNodesWithTag(PAGE_ITEM_TESTING_TAG)[0].performClick()
+      }
+    })
   }
 }

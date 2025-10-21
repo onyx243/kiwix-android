@@ -24,16 +24,12 @@ import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
-import android.graphics.Color
 import android.os.Build
-import android.os.Bundle
 import android.os.Environment
 import android.view.Menu
 import android.view.MenuItem
-import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ActionMode
-import androidx.appcompat.widget.Toolbar
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
@@ -42,7 +38,7 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProviders
-import androidx.navigation.NavDirections
+import androidx.navigation.NavOptions
 import org.kiwix.kiwixmobile.core.di.components.CoreActivityComponent
 import org.kiwix.kiwixmobile.core.main.CoreMainActivity
 import org.kiwix.kiwixmobile.core.utils.REQUEST_POST_NOTIFICATION_PERMISSION
@@ -94,31 +90,24 @@ object ActivityExtensions {
     ViewModelProviders.of(this, viewModelFactory)
       .get(T::class.java)
 
-  fun Activity.navigate(action: NavDirections) {
-    coreMainActivity.navigate(action)
-  }
-
   val Activity.cachedComponent: CoreActivityComponent
     get() = coreMainActivity.cachedComponent
 
-  fun Activity.setupDrawerToggle(toolbar: Toolbar, shouldEnableRightDrawer: Boolean = false) =
-    coreMainActivity.setupDrawerToggle(toolbar, shouldEnableRightDrawer)
-
-  fun Activity.navigate(fragmentId: Int) {
-    coreMainActivity.navigate(fragmentId)
-  }
-
-  fun Activity.navigate(fragmentId: Int, bundle: Bundle) {
-    coreMainActivity.navigate(fragmentId, bundle)
+  fun Activity.navigate(route: String, navOptions: NavOptions? = null) {
+    coreMainActivity.navigate(route, navOptions)
   }
 
   fun Activity.popNavigationBackstack() {
     coreMainActivity.navController.popBackStack()
   }
 
-  private fun <T> Activity.getObservableNavigationResult(key: String = "result") =
-    coreMainActivity.navController.currentBackStackEntry?.savedStateHandle
-      ?.getLiveData<T>(key)
+  fun <T> Activity.getObservableNavigationResult(key: String = "result") =
+    if (coreMainActivity.isNavControllerInitialized) {
+      coreMainActivity.navController.currentBackStackEntry?.savedStateHandle
+        ?.getLiveData<T>(key)
+    } else {
+      null
+    }
 
   fun <T> Activity.observeNavigationResult(
     key: String,
@@ -132,20 +121,28 @@ object ActivityExtensions {
   }
 
   fun <T> Activity.consumeObservable(key: String = "result") =
-    coreMainActivity.navController.currentBackStackEntry?.savedStateHandle?.remove<T>(key)
+    if (coreMainActivity.isNavControllerInitialized) {
+      coreMainActivity.navController.currentBackStackEntry?.savedStateHandle?.remove<T>(key)
+    } else {
+      // do nothing.
+    }
 
   fun <T> Activity.setNavigationResult(result: T, key: String = "result") {
-    coreMainActivity.navController.previousBackStackEntry?.savedStateHandle?.set(
-      key,
-      result
-    )
+    if (coreMainActivity.isNavControllerInitialized) {
+      coreMainActivity.navController.previousBackStackEntry?.savedStateHandle?.set(
+        key,
+        result
+      )
+    }
   }
 
   fun <T> Activity.setNavigationResultOnCurrent(result: T, key: String = "result") {
-    coreMainActivity.navController.currentBackStackEntry?.savedStateHandle?.set(
-      key,
-      result
-    )
+    if (coreMainActivity.isNavControllerInitialized) {
+      coreMainActivity.navController.currentBackStackEntry?.savedStateHandle?.set(
+        key,
+        result
+      )
+    }
   }
 
   fun Activity.hasNotificationPermission(sharedPreferenceUtil: SharedPreferenceUtil?) =
@@ -193,28 +190,4 @@ object ActivityExtensions {
 
   fun Activity.isLandScapeMode(): Boolean =
     resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-
-  @Suppress("MagicNumber")
-  fun Activity.isTablet(): Boolean {
-    val configuration = resources.configuration
-    val isLargeOrXLarge =
-      configuration.screenLayout and
-        Configuration.SCREENLAYOUT_SIZE_MASK >= Configuration.SCREENLAYOUT_SIZE_LARGE
-    val isWideEnough = configuration.smallestScreenWidthDp >= 600
-    return isLargeOrXLarge && isWideEnough
-  }
-
-  /**
-   * Sets the window background color to black for Android 15 and above.
-   *
-   * In Android 15, the `setStatusBarColor` method is deprecated and no longer functional.
-   * As a workaround, this method sets the window background color to black because the
-   * status bar and navigation bar now inherit the background color of the window.
-   *
-   * @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
-   */
-  @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
-  fun Activity.setWindowBackgroundColorForAndroid15AndAbove() {
-    window.decorView.setBackgroundColor(Color.BLACK)
-  }
 }

@@ -13,8 +13,6 @@
   <string name="menu_search_in_text">Cari dalam teks</string>
   <string name="bookmarks">Kegemaran</string>
   <string name="menu_random_article">Rencana rawak</string>
-  <string name="menu_full_screen">Skrin penuh</string>
-  <string name="menu_exit_full_screen">Keluar dari skrin penuh</string>
   <string name="menu_read_aloud">Bacakan</string>
   <string name="menu_read_aloud_stop">Berhenti bacakan</string>
   <string name="menu_support_kiwix">Sokong Kiwix</string>
@@ -96,7 +94,6 @@
   <string name="welcome_to_the_family">Selamat datang ke keluarga</string>
   <string name="save_books_offline">Simpan buku luar talian</string>
   <string name="table_of_contents">Jadual isi kandungan</string>
-  <string name="select_languages">Pilih bahasa</string>
   <string name="save_languages">Simpan bahasa</string>
   <string name="expand">Kembangkan</string>
   <string name="history">Sejarah</string>

@@ -20,14 +20,12 @@ package org.kiwix.kiwixmobile.core.search.viewmodel.effects
 
 import android.os.Parcelable
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.os.bundleOf
 import kotlinx.parcelize.Parcelize
 import org.kiwix.kiwixmobile.core.base.SideEffect
 import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.setNavigationResultOnCurrent
 import org.kiwix.kiwixmobile.core.main.CoreMainActivity
-import org.kiwix.kiwixmobile.core.main.SEARCH_ITEM_TITLE_KEY
 import org.kiwix.kiwixmobile.core.reader.addContentPrefix
-import org.kiwix.kiwixmobile.core.search.adapter.SearchListItem
+import org.kiwix.kiwixmobile.core.search.SearchListItem
 import org.kiwix.kiwixmobile.core.utils.TAG_FILE_SEARCHED
 
 data class OpenSearchItem(
@@ -35,11 +33,8 @@ data class OpenSearchItem(
   private val openInNewTab: Boolean = false
 ) : SideEffect<Unit> {
   override fun invokeWith(activity: AppCompatActivity) {
-    val readerFragmentResId = (activity as CoreMainActivity).readerFragmentResId
-    activity.navigate(
-      readerFragmentResId,
-      bundleOf(SEARCH_ITEM_TITLE_KEY to SEARCH_ITEM_TITLE_KEY)
-    )
+    val readerFragmentRoute = (activity as CoreMainActivity).readerFragmentRoute
+    activity.navigate(readerFragmentRoute)
     activity.setNavigationResultOnCurrent(
       SearchItemToOpen(
         searchListItem.value,

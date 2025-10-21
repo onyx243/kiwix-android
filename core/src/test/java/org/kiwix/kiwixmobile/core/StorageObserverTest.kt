@@ -19,16 +19,16 @@
 package org.kiwix.kiwixmobile.core
 
 import io.mockk.clearAllMocks
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.kiwix.kiwixmobile.core.dao.DownloadRoomDao
@@ -41,11 +41,9 @@ import org.kiwix.kiwixmobile.core.utils.SharedPreferenceUtil
 import org.kiwix.kiwixmobile.core.utils.files.FileSearch
 import org.kiwix.kiwixmobile.core.utils.files.ScanningProgressListener
 import org.kiwix.kiwixmobile.core.utils.files.testFlow
-import org.kiwix.kiwixmobile.core.zim_manager.fileselect_view.BooksOnDiskListItem.BookOnDisk
-import org.kiwix.sharedFunctions.book
-import org.kiwix.sharedFunctions.bookOnDisk
-import org.kiwix.sharedFunctions.resetSchedulers
-import org.kiwix.sharedFunctions.setScheduler
+import org.kiwix.libkiwix.Book
+import org.kiwix.libzim.Archive
+import org.kiwix.sharedFunctions.libkiwixBook
 import java.io.File
 
 class StorageObserverTest {
@@ -62,26 +60,27 @@ class StorageObserverTest {
 
   private val files = MutableStateFlow<List<File>>(emptyList())
   private val downloads = MutableStateFlow<List<DownloadModel>>(emptyList())
+  private val libkiwixBookFactory: LibkiwixBookFactory = mockk()
+  private val libkiwixBook: Book = BookTestWrapper("id")
 
   private lateinit var storageObserver: StorageObserver
-
-  init {
-    setScheduler(Schedulers.trampoline())
-  }
-
-  @AfterAll
-  fun teardown() {
-    resetSchedulers()
-  }
 
   @BeforeEach fun init() {
     clearAllMocks()
     every { sharedPreferenceUtil.prefStorage } returns "a"
     every { fileSearch.scan(scanningProgressListener) } returns files
     every { downloadRoomDao.downloads() } returns downloads
+    coEvery { libkiwixBookmarks.addBookToLibrary(any()) } returns Unit
     every { zimFileReader.jniKiwixReader } returns mockk()
     every { runBlocking { readerFactory.create(zimReaderSource) } } returns zimFileReader
-    storageObserver = StorageObserver(downloadRoomDao, fileSearch, readerFactory, libkiwixBookmarks)
+    every { libkiwixBookFactory.create() } returns libkiwixBook
+    storageObserver = StorageObserver(
+      downloadRoomDao,
+      fileSearch,
+      readerFactory,
+      libkiwixBookmarks,
+      libkiwixBookFactory
+    )
   }
 
   @Test
@@ -90,7 +89,7 @@ class StorageObserverTest {
     testFlow(
       flow = booksOnFileSystem(),
       triggerAction = {},
-      assert = { assertThat(awaitItem()).isEqualTo(listOf<BookOnDisk>()) }
+      assert = { assertThat(awaitItem()).isEqualTo(listOf<Book>()) }
     )
   }
 
@@ -98,9 +97,9 @@ class StorageObserverTest {
   @Test
   fun `zim files are read by the file reader`() = runTest {
     val expectedBook =
-      book(
+      libkiwixBook(
         "id", "title", "1", "favicon", "creator", "publisher", "date",
-        "description", "language"
+        "description", "language", nativeBook = libkiwixBook
       )
     withNoFiltering()
     every { zimFileReader.toBook() } returns expectedBook
@@ -110,15 +109,14 @@ class StorageObserverTest {
       triggerAction = {},
       assert = {
         assertThat(awaitItem()).isEqualTo(
-          listOf<BookOnDisk>(
-            bookOnDisk(
-              book = expectedBook,
-              zimReaderSource = zimReaderSource
-            )
+          listOfNotNull<Book>(
+            expectedBook.nativeBook
           )
         )
       }
     )
+    // test the book is added to bookmark's library.
+    coVerify { libkiwixBookmarks.addBookToLibrary(archive = any()) }
     verify { zimFileReader.dispose() }
   }
 
@@ -139,5 +137,14 @@ class StorageObserverTest {
     every { file.absolutePath } returns "This won't match"
     every { file.canonicalPath } returns "This won't match"
     every { zimReaderSource.file } returns file
+  }
+}
+
+class BookTestWrapper(private val id: String) : Book(0L) {
+  override fun getId(): String = id
+  override fun equals(other: Any?): Boolean = other is BookTestWrapper && getId() == other.getId()
+  override fun hashCode(): Int = getId().hashCode()
+  override fun update(archive: Archive?) {
+    // do nothing
   }
 }

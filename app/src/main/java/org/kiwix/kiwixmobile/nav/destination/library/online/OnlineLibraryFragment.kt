@@ -29,11 +29,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
@@ -44,9 +44,10 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.tonyodev.fetch2.Status
 import eu.mhutti1.utils.storage.StorageDevice
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.kiwix.kiwixmobile.R.drawable
 import org.kiwix.kiwixmobile.cachedComponent
@@ -55,17 +56,15 @@ import org.kiwix.kiwixmobile.core.R.string
 import org.kiwix.kiwixmobile.core.base.BaseActivity
 import org.kiwix.kiwixmobile.core.base.BaseFragment
 import org.kiwix.kiwixmobile.core.base.FragmentActivityExtensions
+import org.kiwix.kiwixmobile.core.data.remote.KiwixService.Companion.ITEMS_PER_PAGE
 import org.kiwix.kiwixmobile.core.downloader.Downloader
-import org.kiwix.kiwixmobile.core.downloader.downloadManager.ZERO
 import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.hasNotificationPermission
 import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.isManageExternalStoragePermissionGranted
 import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.navigate
 import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.requestNotificationPermission
 import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.viewModel
 import org.kiwix.kiwixmobile.core.extensions.closeKeyboard
-import org.kiwix.kiwixmobile.core.extensions.coreMainActivity
 import org.kiwix.kiwixmobile.core.extensions.isKeyboardVisible
-import org.kiwix.kiwixmobile.core.extensions.setBottomMarginToFragmentContainerView
 import org.kiwix.kiwixmobile.core.extensions.snack
 import org.kiwix.kiwixmobile.core.extensions.toast
 import org.kiwix.kiwixmobile.core.extensions.update
@@ -74,7 +73,7 @@ import org.kiwix.kiwixmobile.core.navigateToAppSettings
 import org.kiwix.kiwixmobile.core.navigateToSettings
 import org.kiwix.kiwixmobile.core.page.SEARCH_ICON_TESTING_TAG
 import org.kiwix.kiwixmobile.core.ui.components.NavigationIcon
-import org.kiwix.kiwixmobile.core.ui.components.rememberBottomNavigationVisibility
+import org.kiwix.kiwixmobile.core.ui.components.ONE
 import org.kiwix.kiwixmobile.core.ui.models.ActionMenuItem
 import org.kiwix.kiwixmobile.core.ui.models.IconItem
 import org.kiwix.kiwixmobile.core.utils.BookUtils
@@ -87,11 +86,14 @@ import org.kiwix.kiwixmobile.core.utils.SharedPreferenceUtil
 import org.kiwix.kiwixmobile.core.utils.dialog.AlertDialogShower
 import org.kiwix.kiwixmobile.core.utils.dialog.DialogHost
 import org.kiwix.kiwixmobile.core.utils.dialog.KiwixDialog
+import org.kiwix.kiwixmobile.core.utils.files.Log
 import org.kiwix.kiwixmobile.core.zim_manager.NetworkState
 import org.kiwix.kiwixmobile.main.KiwixMainActivity
 import org.kiwix.kiwixmobile.storage.STORAGE_SELECT_STORAGE_TITLE_TEXTVIEW_SIZE
 import org.kiwix.kiwixmobile.storage.StorageSelectDialog
+import org.kiwix.kiwixmobile.ui.KiwixDestination
 import org.kiwix.kiwixmobile.zimManager.ZimManageViewModel
+import org.kiwix.kiwixmobile.zimManager.ZimManageViewModel.OnlineLibraryRequest
 import org.kiwix.kiwixmobile.zimManager.libraryView.AvailableSpaceCalculator
 import org.kiwix.kiwixmobile.zimManager.libraryView.adapter.LibraryListItem
 import javax.inject.Inject
@@ -123,22 +125,47 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
       OnlineLibraryScreenState(
         onlineLibraryList = null,
         snackBarHostState = SnackbarHostState(),
-        swipeRefreshItem = Pair(false, true),
+        isRefreshing = false,
         scanningProgressItem = Pair(false, ""),
         noContentViewItem = Pair("", false),
-        bottomNavigationHeight = ZERO,
         onBookItemClick = { onBookItemClick(it) },
         availableSpaceCalculator = availableSpaceCalculator,
-        onRefresh = { refreshFragment() },
+        onRefresh = { refreshFragment(true) },
         bookUtils = bookUtils,
         onPauseResumeButtonClick = { onPauseResumeButtonClick(it) },
         onStopButtonClick = { onStopButtonClick(it) },
         isSearchActive = false,
         searchText = "",
         searchValueChangedListener = { onSearchValueChanged(it) },
-        clearSearchButtonClickListener = { onSearchClear() }
+        clearSearchButtonClickListener = { onSearchClear() },
+        onLoadMore = { totalItemShowingCount ->
+          loadMoreBooksFromNetwork(totalItemShowingCount)
+        },
+        isLoadingMoreItem = false
       )
     )
+  }
+
+  private fun loadMoreBooksFromNetwork(totalItemShowingCount: Int) {
+    val totalResults = zimManageViewModel.onlineLibraryManager.totalResult
+    val totalPages =
+      zimManageViewModel.onlineLibraryManager.calculateTotalPages(
+        totalResults,
+        ITEMS_PER_PAGE
+      )
+    val currentPage = totalItemShowingCount / ITEMS_PER_PAGE
+    val nextPage = currentPage + ONE
+
+    if (nextPage < totalPages) {
+      zimManageViewModel.updateOnlineLibraryFilters(
+        zimManageViewModel.onlineLibraryRequest.value.copy(
+          page = nextPage,
+          isLoadMoreItem = true
+        )
+      )
+    } else {
+      Log.d("OnlineLibrary", "All pages loaded")
+    }
   }
 
   private fun onSearchClear() {
@@ -146,7 +173,7 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
       copy(searchText = "")
     }
     zimManageViewModel.onlineBooksSearchedQuery.value = null
-    zimManageViewModel.requestFiltering.onNext("")
+    zimManageViewModel.requestFiltering.tryEmit("")
   }
 
   private fun onSearchValueChanged(searchText: String) {
@@ -159,7 +186,7 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
     onlineLibraryScreenState.value.update {
       copy(searchText = searchText)
     }
-    zimManageViewModel.requestFiltering.onNext(searchText)
+    zimManageViewModel.requestFiltering.tryEmit(searchText)
   }
 
   private val noWifiWithWifiOnlyPreferenceSet
@@ -179,11 +206,6 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
   ): View? = ComposeView(requireContext()).also {
     composeView = it
   }
-
-  private fun getBottomNavigationView() =
-    requireActivity().findViewById<BottomNavigationView>(org.kiwix.kiwixmobile.R.id.bottom_nav_view)
-
-  private fun getBottomNavigationHeight() = getBottomNavigationView().measuredHeight
 
   private fun onPauseResumeButtonClick(item: LibraryListItem.LibraryDownloadItem) {
     context?.let { context ->
@@ -213,18 +235,14 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
     }
   }
 
+  @OptIn(ExperimentalMaterial3Api::class)
   override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
     super.onViewCreated(view, savedInstanceState)
     composeView?.setContent {
       val lazyListState = rememberLazyListState()
-      val isBottomNavVisible = rememberBottomNavigationVisibility(lazyListState)
-      LaunchedEffect(isBottomNavVisible) {
-        (requireActivity() as KiwixMainActivity).toggleBottomNavigation(isBottomNavVisible)
-      }
       LaunchedEffect(Unit) {
         onlineLibraryScreenState.value.update {
           copy(
-            bottomNavigationHeight = getBottomNavigationHeight(),
             isSearchActive = isSearchActive,
             scanningProgressItem = false to getString(R.string.reaching_remote_library)
           )
@@ -242,30 +260,61 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
             contentDescription = string.open_drawer,
             onClick = { navigationIconClick(onlineLibraryScreenState.value.value.isSearchActive) }
           )
-        }
+        },
+        bottomAppBarScrollBehaviour = (requireActivity() as CoreMainActivity).bottomAppBarScrollBehaviour,
+        navHostController = (requireActivity() as CoreMainActivity).navController,
+        onUserBackPressed = { onUserBackPressed() }
       )
       DialogHost(alertDialogShower)
     }
-    zimManageViewModel.libraryItems.observe(viewLifecycleOwner, Observer(::onLibraryItemsChange))
-      .also {
-        coreMainActivity.navHostContainer
-          .setBottomMarginToFragmentContainerView(0)
-      }
-    zimManageViewModel.libraryListIsRefreshing.observe(
-      viewLifecycleOwner,
-      Observer { onRefreshStateChange(it, true) }
-    )
-    zimManageViewModel.networkStates.observe(viewLifecycleOwner, Observer(::onNetworkStateChange))
-    zimManageViewModel.shouldShowWifiOnlyDialog.observe(
-      viewLifecycleOwner
-    ) {
-      if (it && !NetworkUtils.isWiFi(requireContext())) {
-        showInternetAccessViaMobileNetworkDialog()
-        hideProgressBarOfFetchingOnlineLibrary()
-      }
-    }
-    zimManageViewModel.downloadProgress.observe(viewLifecycleOwner, ::onLibraryStatusChanged)
+    observeViewModelData()
     showPreviouslySearchedTextInSearchView()
+    startDownloadingLibrary(getOnlineLibraryRequest())
+  }
+
+  private fun getOnlineLibraryRequest(): OnlineLibraryRequest = OnlineLibraryRequest(
+    null,
+    null,
+    sharedPreferenceUtil.selectedOnlineContentLanguage.takeUnless { it.isBlank() },
+    false,
+    1
+  )
+
+  private fun observeViewModelData() {
+    zimManageViewModel.apply {
+      // Observe when library items changes.
+      libraryItems
+        .onEach { onLibraryItemsChange(it) }
+        .launchIn(viewLifecycleOwner.lifecycleScope)
+      // Observe when online library downloading.
+      onlineLibraryDownloading
+        .onEach { (initialLibraryDownloading, loadingMoreItem) ->
+          if (initialLibraryDownloading) {
+            showProgressBarOfFetchingOnlineLibrary()
+          } else {
+            hideProgressBarOfFetchingOnlineLibrary()
+          }
+          onlineLibraryScreenState.value.update { copy(isLoadingMoreItem = loadingMoreItem) }
+        }.launchIn(viewLifecycleOwner.lifecycleScope)
+      // Observe when library list refreshing e.g. applying filters.
+      libraryListIsRefreshing.observe(
+        viewLifecycleOwner,
+        Observer { onRefreshStateChange(it) }
+      )
+      // Observe network changes.
+      networkStates.observe(viewLifecycleOwner, Observer(::onNetworkStateChange))
+      // Observe `shouldShowWifiOnlyDialog` should show.
+      shouldShowWifiOnlyDialog.observe(
+        viewLifecycleOwner
+      ) {
+        if (it && !NetworkUtils.isWiFi(requireContext())) {
+          showInternetAccessViaMobileNetworkDialog()
+          hideProgressBarOfFetchingOnlineLibrary()
+        }
+      }
+      // Observe the download progress.
+      downloadProgress.observe(viewLifecycleOwner, ::onLibraryStatusChanged)
+    }
   }
 
   private fun showPreviouslySearchedTextInSearchView() {
@@ -275,11 +324,11 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
         onlineLibraryScreenState.value.update {
           copy(isSearchActive = true, searchText = it)
         }
-        zimManageViewModel.requestFiltering.onNext(it)
+        zimManageViewModel.requestFiltering.tryEmit(it)
       } ?: run {
       // If no previously saved query found then normally initiate the search.
       zimManageViewModel.onlineBooksSearchedQuery.value = ""
-      zimManageViewModel.requestFiltering.onNext("")
+      zimManageViewModel.requestFiltering.tryEmit("")
     }
   }
 
@@ -330,7 +379,7 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
   )
 
   private fun onLanguageMenuIconClick() {
-    requireActivity().navigate(org.kiwix.kiwixmobile.R.id.languageFragment)
+    requireActivity().navigate(KiwixDestination.Language.route)
     closeKeyboard()
   }
 
@@ -341,6 +390,10 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
         showRecyclerviewAndHideSwipeDownForLibraryErrorText()
         sharedPreferenceUtil.putPrefWifiOnly(false)
         zimManageViewModel.shouldShowWifiOnlyDialog.value = false
+        // User allowed downloading over mobile data.
+        // Since the download flow now triggers only when appropriate,
+        // we start the library download explicitly after updating the preference.
+        startDownloadingLibrary(getOnlineLibraryRequest())
       },
       {
         context.toast(
@@ -356,32 +409,28 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
     onlineLibraryScreenState.value.update {
       copy(noContentViewItem = "" to false)
     }
-    showProgressBarOfFetchingOnlineLibrary()
   }
 
   private fun hideRecyclerviewAndShowSwipeDownForLibraryErrorText() {
     onlineLibraryScreenState.value.update {
       copy(noContentViewItem = getString(string.swipe_down_for_library) to true)
     }
-    hideProgressBarOfFetchingOnlineLibrary()
   }
 
   private fun showProgressBarOfFetchingOnlineLibrary() {
-    onRefreshStateChange(isRefreshing = false, shouldShowScanningProgressItem = false)
     onlineLibraryScreenState.value.update {
       copy(
         noContentViewItem = "" to false,
-        swipeRefreshItem = onlineLibraryScreenState.value.value.swipeRefreshItem.first to false,
+        isRefreshing = false,
         scanningProgressItem = true to getString(string.reaching_remote_library)
       )
     }
   }
 
   private fun hideProgressBarOfFetchingOnlineLibrary() {
-    onRefreshStateChange(isRefreshing = false, false)
     onlineLibraryScreenState.value.update {
       copy(
-        swipeRefreshItem = onlineLibraryScreenState.value.value.swipeRefreshItem.first to true,
+        isRefreshing = false,
         scanningProgressItem = false to getString(string.reaching_remote_library)
       )
     }
@@ -391,7 +440,7 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
     synchronized(lock) {
       onlineLibraryScreenState.value.update {
         copy(
-          scanningProgressItem = onlineLibraryScreenState.value.value.scanningProgressItem.first to libraryStatus
+          scanningProgressItem = true to libraryStatus
         )
       }
     }
@@ -403,8 +452,13 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
     composeView = null
   }
 
-  override fun onBackPressed(activity: AppCompatActivity): FragmentActivityExtensions.Super {
-    if (isKeyboardVisible() || onlineLibraryScreenState.value.value.isSearchActive) {
+  @Suppress("ReturnCount")
+  private fun onUserBackPressed(): FragmentActivityExtensions.Super {
+    val coreMainActivity = activity as? CoreMainActivity
+    if (coreMainActivity?.navigationDrawerIsOpen() == true) {
+      coreMainActivity.closeNavigationDrawer()
+      return FragmentActivityExtensions.Super.ShouldNotCall
+    } else if (isKeyboardVisible() || onlineLibraryScreenState.value.value.isSearchActive) {
       closeKeyboard()
       closeSearch()
       return FragmentActivityExtensions.Super.ShouldNotCall
@@ -419,35 +473,27 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
     onSearchClear()
   }
 
-  private fun onRefreshStateChange(
-    isRefreshing: Boolean?,
-    shouldShowScanningProgressItem: Boolean
-  ) {
-    var refreshing = isRefreshing == true
-    val onlineLibraryState = onlineLibraryScreenState.value.value
-    // do not show the refreshing when the online library is downloading
-    if (onlineLibraryState.scanningProgressItem.first ||
-      onlineLibraryState.noContentViewItem.second
-    ) {
-      refreshing = false
-    }
+  private fun onRefreshStateChange(isRefreshing: Boolean?) {
+    val refreshing = isRefreshing == true
     onlineLibraryScreenState.value.update {
-      copy(
-        swipeRefreshItem = refreshing to onlineLibraryState.swipeRefreshItem.second,
-        scanningProgressItem = shouldShowScanningProgressItem to onlineLibraryState.scanningProgressItem.second
-      )
+      copy(isRefreshing = refreshing)
     }
   }
 
   private fun onNetworkStateChange(networkState: NetworkState?) {
     when (networkState) {
       NetworkState.CONNECTED -> {
-        if (NetworkUtils.isWiFi(requireContext())) {
-          refreshFragment()
-        } else if (noWifiWithWifiOnlyPreferenceSet) {
-          hideRecyclerviewAndShowSwipeDownForLibraryErrorText()
-        } else if (!noWifiWithWifiOnlyPreferenceSet) {
-          if (onlineLibraryScreenState.value.value.onlineLibraryList?.isEmpty() == true) {
+        when {
+          NetworkUtils.isWiFi(requireContext()) -> {
+            refreshFragment(false)
+          }
+
+          noWifiWithWifiOnlyPreferenceSet -> {
+            hideRecyclerviewAndShowSwipeDownForLibraryErrorText()
+          }
+
+          onlineLibraryScreenState.value.value.onlineLibraryList.isNullOrEmpty() -> {
+            startDownloadingLibrary(getOnlineLibraryRequest())
             showProgressBarOfFetchingOnlineLibrary()
           }
         }
@@ -501,13 +547,19 @@ class OnlineLibraryFragment : BaseFragment(), FragmentActivityExtensions {
     hideProgressBarOfFetchingOnlineLibrary()
   }
 
-  private fun refreshFragment() {
+  private fun refreshFragment(isExplicitRefresh: Boolean) {
     if (isNotConnected) {
       showNoInternetConnectionError()
     } else {
-      zimManageViewModel.requestDownloadLibrary.onNext(Unit)
-      showRecyclerviewAndHideSwipeDownForLibraryErrorText()
+      startDownloadingLibrary(getOnlineLibraryRequest())
+      if (isExplicitRefresh) {
+        showRecyclerviewAndHideSwipeDownForLibraryErrorText()
+      }
     }
+  }
+
+  private fun startDownloadingLibrary(onlineLibraryRequest: OnlineLibraryRequest) {
+    zimManageViewModel.updateOnlineLibraryFilters(onlineLibraryRequest)
   }
 
   private fun downloadFile() {

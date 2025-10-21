@@ -10,8 +10,6 @@
   <string name="menu_search_in_text">Најди на страницата</string>
   <string name="bookmarks">Обележани</string>
   <string name="menu_random_article">Случајна статија</string>
-  <string name="menu_full_screen">На цел екран</string>
-  <string name="menu_exit_full_screen">Излези од цел екран</string>
   <string name="menu_read_aloud">Прочитај на глас</string>
   <string name="menu_read_aloud_stop">Запри читање на глас</string>
   <string name="menu_support_kiwix">Поддржете го Кивикс</string>
@@ -162,6 +160,7 @@
   <string name="no">Не</string>
   <string name="confirm_stop_download_title">Да го прекинам преземањето?</string>
   <string name="confirm_stop_download_msg">Дали сте сигурни дека сакате да го запрете преземањево?</string>
+  <string name="change_storage">Смени</string>
   <string name="tts_not_enabled">Читањето на глас не е овозможено за оваа ZIM-податотека</string>
   <string name="texttospeech_initialization_failed">Не успеав да го покренам „Прочитај на глас“. Обидете се повторно.</string>
   <string name="texttospeech_error">Се јави неочекувана грешка во „Прочитај на глас“. Обидете се повторно.</string>
@@ -183,6 +182,7 @@
   <string name="external_link_popup_dialog_message">Внесувате надворешна врска. Ова може да доведе до дополнителни трошоци за податочен пренос или пак просто нема да работи кога не сте на линија.\nДали сакате да продолжите?</string>
   <string name="do_not_ask_anymore">Повеќе не прашувај</string>
   <string name="your_languages">Избрани јазици:</string>
+  <string name="your_language">Избран јазик: %s</string>
   <string name="other_languages">Други јазици:</string>
   <string name="downloading">Преземање:</string>
   <string name="no_items_msg">Нема ставки</string>
@@ -211,8 +211,10 @@
   <string name="go_to_previous_page">Оди на претходната страница</string>
   <string name="go_to_next_page">Оди на следната страница</string>
   <string name="table_of_contents">Содржина</string>
-  <string name="select_languages">Одберете јазици</string>
+  <string name="select_language">Одберете јазик</string>
   <string name="save_languages">Зачувај јазици</string>
+  <string name="all_languages">Сите јазици</string>
+  <string name="no_language_available">Нема јазици на располагање</string>
   <string name="expand">Прикажи</string>
   <string name="history">Историја</string>
   <string name="history_from_current_book">Историја од сите книги</string>

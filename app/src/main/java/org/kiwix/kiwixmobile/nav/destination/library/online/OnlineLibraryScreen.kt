@@ -19,6 +19,7 @@
 package org.kiwix.kiwixmobile.nav.destination.library.online
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -29,8 +30,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.BottomAppBarScrollBehavior
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,6 +44,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -48,9 +56,15 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import org.kiwix.kiwixmobile.core.R.string
+import org.kiwix.kiwixmobile.core.base.FragmentActivityExtensions
+import org.kiwix.kiwixmobile.core.downloader.downloadManager.FIVE
+import org.kiwix.kiwixmobile.core.downloader.downloadManager.ZERO
 import org.kiwix.kiwixmobile.core.extensions.hideKeyboardOnLazyColumnScroll
+import org.kiwix.kiwixmobile.core.main.reader.OnBackPressed
 import org.kiwix.kiwixmobile.core.ui.components.ContentLoadingProgressBar
 import org.kiwix.kiwixmobile.core.ui.components.KiwixAppBar
 import org.kiwix.kiwixmobile.core.ui.components.KiwixSearchView
@@ -69,7 +83,7 @@ import org.kiwix.kiwixmobile.core.utils.ComposeDimens.EIGHT_DP
 import org.kiwix.kiwixmobile.core.utils.ComposeDimens.FOUR_DP
 import org.kiwix.kiwixmobile.core.utils.ComposeDimens.SIXTEEN_DP
 import org.kiwix.kiwixmobile.core.utils.ComposeDimens.SIX_DP
-import org.kiwix.kiwixmobile.nav.destination.library.local.rememberScrollBehavior
+import org.kiwix.kiwixmobile.core.utils.ComposeDimens.THREE_DP
 import org.kiwix.kiwixmobile.zimManager.libraryView.adapter.LibraryListItem
 import org.kiwix.kiwixmobile.zimManager.libraryView.adapter.LibraryListItem.DividerItem
 
@@ -78,6 +92,7 @@ const val ONLINE_LIBRARY_SEARCH_VIEW_CLOSE_BUTTON_TESTING_TAG =
   "onlineLibrarySearchViewCloseButtonTestingTag"
 const val NO_CONTENT_VIEW_TEXT_TESTING_TAG = "noContentViewTextTestingTag"
 const val SHOW_FETCHING_LIBRARY_LAYOUT_TESTING_TAG = "showFetchingLibraryLayoutTestingTag"
+const val ONLINE_DIVIDER_ITEM_TEXT_TESTING_TAG = "onlineDividerItemTextTag"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("ComposableLambdaParameterNaming")
@@ -86,10 +101,11 @@ fun OnlineLibraryScreen(
   state: OnlineLibraryScreenState,
   actionMenuItems: List<ActionMenuItem>,
   listState: LazyListState,
+  bottomAppBarScrollBehaviour: BottomAppBarScrollBehavior?,
+  onUserBackPressed: () -> FragmentActivityExtensions.Super,
+  navHostController: NavHostController,
   navigationIcon: @Composable () -> Unit,
 ) {
-  val (bottomNavHeight, lazyListState) =
-    rememberScrollBehavior(state.bottomNavigationHeight, listState)
   val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
   KiwixTheme {
@@ -97,20 +113,24 @@ fun OnlineLibraryScreen(
       snackbarHost = { KiwixSnackbarHost(snackbarHostState = state.snackBarHostState) },
       topBar = {
         KiwixAppBar(
-          string.download,
-          navigationIcon,
-          actionMenuItems,
-          scrollBehavior,
+          title = stringResource(string.download),
+          navigationIcon = navigationIcon,
+          actionMenuItems = actionMenuItems,
+          topAppBarScrollBehavior = scrollBehavior,
           searchBar = searchBarIfActive(state)
         )
       },
       modifier = Modifier
         .nestedScroll(scrollBehavior.nestedScrollConnection)
-        .padding(bottom = bottomNavHeight.value)
+        .let { baseModifier ->
+          bottomAppBarScrollBehaviour?.let {
+            baseModifier.nestedScroll(it.nestedScrollConnection)
+          } ?: baseModifier
+        }
     ) { paddingValues ->
       SwipeRefreshLayout(
-        isRefreshing = state.swipeRefreshItem.first,
-        isEnabled = state.swipeRefreshItem.second,
+        isRefreshing = state.isRefreshing && !state.scanningProgressItem.first,
+        isEnabled = !state.scanningProgressItem.first,
         onRefresh = state.onRefresh,
         modifier = Modifier
           .fillMaxSize()
@@ -120,7 +140,8 @@ fun OnlineLibraryScreen(
             end = paddingValues.calculateEndPadding(LocalLayoutDirection.current),
           )
       ) {
-        OnlineLibraryScreenContent(state, lazyListState)
+        OnBackPressed(onUserBackPressed, navHostController)
+        OnlineLibraryScreenContent(state, listState)
       }
     }
   }
@@ -191,6 +212,38 @@ private fun OnlineLibraryList(state: OnlineLibraryScreenState, lazyListState: La
         }
       }
     }
+    showLoadMoreProgressBar(state.isLoadingMoreItem)
+  }
+
+  LaunchedEffect(lazyListState) {
+    snapshotFlow {
+      derivedStateOf {
+        val layoutInfo = lazyListState.layoutInfo
+        val totalItems = layoutInfo.totalItemsCount
+        val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: ZERO
+        (totalItems > ZERO && lastVisibleItemIndex >= totalItems.minus(FIVE)) to totalItems
+      }.value
+    }
+      .distinctUntilChanged()
+      .filter { it.first }
+      .collect { (_, totalItems) ->
+        state.onLoadMore(totalItems)
+      }
+  }
+}
+
+private fun LazyListScope.showLoadMoreProgressBar(isLoadingMoreItem: Boolean) {
+  if (isLoadingMoreItem) {
+    item {
+      Box(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(SIXTEEN_DP),
+        contentAlignment = Alignment.Center
+      ) {
+        ContentLoadingProgressBar()
+      }
+    }
   }
 }
 
@@ -203,22 +256,31 @@ private fun ShowDividerItem(dividerItem: DividerItem) {
       .padding(top = SIXTEEN_DP, bottom = EIGHT_DP)
   ) {
     Text(
-      text = stringResource(dividerItem.stringId),
+      text = dividerItem.sectionTitle,
       textAlign = TextAlign.Center,
-      style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal)
+      style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
+      modifier = Modifier.semantics { testTag = ONLINE_DIVIDER_ITEM_TEXT_TESTING_TAG }
     )
   }
 }
 
 @Composable
 private fun NoContentView(noContentMessage: String) {
-  Text(
-    text = noContentMessage,
-    textAlign = TextAlign.Center,
+  Column(
     modifier = Modifier
-      .padding(horizontal = FOUR_DP)
-      .semantics { testTag = NO_CONTENT_VIEW_TEXT_TESTING_TAG }
-  )
+      .fillMaxSize()
+      .verticalScroll(rememberScrollState()),
+    verticalArrangement = Arrangement.Center,
+    horizontalAlignment = Alignment.CenterHorizontally
+  ) {
+    Text(
+      text = noContentMessage,
+      textAlign = TextAlign.Center,
+      modifier = Modifier
+        .padding(horizontal = FOUR_DP)
+        .semantics { testTag = NO_CONTENT_VIEW_TEXT_TESTING_TAG }
+    )
+  }
 }
 
 @Composable
@@ -247,7 +309,7 @@ private fun ShowFetchingLibraryLayout(message: String) {
     ) {
       ContentLoadingProgressBar(
         modifier = Modifier.size(DOWNLOADING_LIBRARY_PROGRESSBAR_SIZE),
-        circularProgressBarStockWidth = 3.dp,
+        circularProgressBarStockWidth = THREE_DP,
         progressBarTrackColor = cardContainerColor
       )
       Text(

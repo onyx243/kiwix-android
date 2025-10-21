@@ -19,25 +19,28 @@
 
 package org.kiwix.kiwixmobile.core.data.remote
 
-import io.reactivex.Observable
-import io.reactivex.Single
-import io.reactivex.schedulers.Schedulers
 import okhttp3.OkHttpClient
-import org.kiwix.kiwixmobile.core.entity.LibraryNetworkEntity
 import org.kiwix.kiwixmobile.core.entity.MetaLinkNetworkEntity
+import retrofit2.Response
 import retrofit2.Retrofit
-import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
+import retrofit2.converter.scalars.ScalarsConverterFactory
 import retrofit2.converter.simplexml.SimpleXmlConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Url
 
 interface KiwixService {
-  @get:GET(LIBRARY_NETWORK_PATH) val library: Single<LibraryNetworkEntity?>
+  @GET
+  suspend fun getLibraryPage(
+    @Url url: String
+  ): Response<String>
 
   @GET
-  fun getMetaLinks(
+  suspend fun getMetaLinks(
     @Url url: String
-  ): Observable<MetaLinkNetworkEntity?>
+  ): MetaLinkNetworkEntity?
+
+  @GET("catalog/v2/languages")
+  suspend fun getLanguages(): LanguageFeed
 
   /******** Helper class that sets up new services  */
   object ServiceCreator {
@@ -46,14 +49,15 @@ interface KiwixService {
       val retrofit = Retrofit.Builder()
         .baseUrl(baseUrl)
         .client(okHttpClient)
+        .addConverterFactory(ScalarsConverterFactory.create())
         .addConverterFactory(SimpleXmlConverterFactory.create())
-        .addCallAdapterFactory(RxJava2CallAdapterFactory.createWithScheduler(Schedulers.io()))
         .build()
       return retrofit.create(KiwixService::class.java)
     }
   }
 
   companion object {
-    const val LIBRARY_NETWORK_PATH = "/library/library_zim.xml"
+    const val OPDS_LIBRARY_ENDPOINT = "v2/entries"
+    const val ITEMS_PER_PAGE = 25
   }
 }

@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -36,18 +37,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import org.kiwix.kiwixmobile.core.R
 import org.kiwix.kiwixmobile.core.extensions.CollectSideEffectWithActivity
+import org.kiwix.kiwixmobile.core.search.SEARCH_FIELD_TESTING_TAG
 import org.kiwix.kiwixmobile.core.ui.components.ContentLoadingProgressBar
 import org.kiwix.kiwixmobile.core.ui.components.KiwixAppBar
 import org.kiwix.kiwixmobile.core.ui.components.KiwixSearchView
 import org.kiwix.kiwixmobile.core.ui.models.ActionMenuItem
+import org.kiwix.kiwixmobile.core.utils.ComposeDimens.FOUR_DP
 import org.kiwix.kiwixmobile.language.composables.LanguageList
 import org.kiwix.kiwixmobile.language.viewmodel.Action
 import org.kiwix.kiwixmobile.language.viewmodel.LanguageViewModel
 import org.kiwix.kiwixmobile.language.viewmodel.State
 import org.kiwix.kiwixmobile.language.viewmodel.State.Content
+import org.kiwix.kiwixmobile.nav.destination.library.online.NO_CONTENT_VIEW_TEXT_TESTING_TAG
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("ComposableLambdaParameterNaming")
@@ -59,7 +67,7 @@ fun LanguageScreen(
   actionMenuItemList: List<ActionMenuItem>,
   onClearClick: () -> Unit,
   onAppBarValueChange: (String) -> Unit,
-  navigationIcon: @Composable() () -> Unit = {}
+  navigationIcon: @Composable() () -> Unit
 ) {
   val state by languageViewModel.state.collectAsState(State.Loading)
   val listState: LazyListState = rememberLazyListState()
@@ -69,7 +77,7 @@ fun LanguageScreen(
   }
   Scaffold(topBar = {
     KiwixAppBar(
-      titleId = R.string.select_languages,
+      title = stringResource(R.string.select_language),
       navigationIcon = navigationIcon,
       actionMenuItems = actionMenuItemList,
       searchBar = if (isSearchActive) {
@@ -113,8 +121,26 @@ fun LanguageScreen(
             }
           )
         }
+
+        is State.Error -> ShowErrorMessage((state as State.Error).errorMessage)
       }
     }
+  }
+}
+
+@Composable
+private fun ShowErrorMessage(errorMessage: String) {
+  Box(
+    modifier = Modifier.fillMaxSize(),
+    contentAlignment = Alignment.Center
+  ) {
+    Text(
+      text = errorMessage,
+      textAlign = TextAlign.Center,
+      modifier = Modifier
+        .padding(horizontal = FOUR_DP)
+        .semantics { testTag = NO_CONTENT_VIEW_TEXT_TESTING_TAG }
+    )
   }
 }
 

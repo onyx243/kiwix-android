@@ -31,8 +31,6 @@
   <string name="menu_search_in_text">Encontrar na página</string>
   <string name="bookmarks">Favoritos</string>
   <string name="menu_random_article">Artigo aleatório</string>
-  <string name="menu_full_screen">Tela inteira</string>
-  <string name="menu_exit_full_screen">Sair do modo de tela inteira</string>
   <string name="menu_read_aloud">Ler em voz alta</string>
   <string name="menu_read_aloud_stop">Parar de ler em voz alta</string>
   <string name="menu_support_kiwix">Apoie Kiwix</string>
@@ -183,6 +181,7 @@
   <string name="no">Não</string>
   <string name="confirm_stop_download_title">Parar o download?</string>
   <string name="confirm_stop_download_msg">Tem certeza de que deseja parar esse download?</string>
+  <string name="change_storage">Mudar</string>
   <string name="tts_not_enabled" fuzzy="true">Texto para fala não está habilitado para este arquivo ZIM</string>
   <string name="texttospeech_initialization_failed" fuzzy="true">Falha na inicialização da leitura de texto. Por favor, tente novamente</string>
   <string name="texttospeech_error" fuzzy="true">Erro inesperado na leitura de texto. Por favor, tente novamente</string>
@@ -232,7 +231,6 @@
   <string name="go_to_previous_page">Ir para a página anterior</string>
   <string name="go_to_next_page">Vá para a próxima página</string>
   <string name="table_of_contents">Índice de informações</string>
-  <string name="select_languages">Selecionar idiomas</string>
   <string name="save_languages">Salvar idiomas</string>
   <string name="expand">Expandir</string>
   <string name="history">Histórico</string>

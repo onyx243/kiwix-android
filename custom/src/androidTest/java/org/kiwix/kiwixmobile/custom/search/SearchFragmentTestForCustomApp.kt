@@ -21,9 +21,11 @@ package org.kiwix.kiwixmobile.custom.search
 import android.Manifest
 import android.content.Context
 import android.content.res.AssetFileDescriptor
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
-import androidx.navigation.fragment.NavHostFragment
 import androidx.preference.PreferenceManager
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.pressBack
@@ -47,17 +49,22 @@ import org.kiwix.kiwixmobile.core.di.modules.CALL_TIMEOUT
 import org.kiwix.kiwixmobile.core.di.modules.CONNECTION_TIMEOUT
 import org.kiwix.kiwixmobile.core.di.modules.READ_TIMEOUT
 import org.kiwix.kiwixmobile.core.di.modules.USER_AGENT
+import org.kiwix.kiwixmobile.core.main.CoreMainActivity
 import org.kiwix.kiwixmobile.core.reader.ZimReaderSource
 import org.kiwix.kiwixmobile.core.search.SearchFragment
 import org.kiwix.kiwixmobile.core.search.viewmodel.Action
+import org.kiwix.kiwixmobile.core.ui.components.NAVIGATION_ICON_TESTING_TAG
 import org.kiwix.kiwixmobile.core.utils.LanguageUtils
 import org.kiwix.kiwixmobile.core.utils.SharedPreferenceUtil
+import org.kiwix.kiwixmobile.core.utils.TestingUtils.COMPOSE_TEST_RULE_ORDER
+import org.kiwix.kiwixmobile.core.utils.TestingUtils.RETRY_RULE_ORDER
 import org.kiwix.kiwixmobile.custom.main.CustomMainActivity
 import org.kiwix.kiwixmobile.custom.main.CustomReaderFragment
 import org.kiwix.kiwixmobile.custom.testutils.RetryRule
 import org.kiwix.kiwixmobile.custom.testutils.TestUtils
 import org.kiwix.kiwixmobile.custom.testutils.TestUtils.closeSystemDialogs
 import org.kiwix.kiwixmobile.custom.testutils.TestUtils.isSystemUINotRespondingDialogVisible
+import org.kiwix.kiwixmobile.custom.testutils.TestUtils.waitUntilTimeout
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URI
@@ -80,9 +87,12 @@ class SearchFragmentTestForCustomApp {
     InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
   }
 
-  @Rule
+  @Rule(order = RETRY_RULE_ORDER)
   @JvmField
   var retryRule = RetryRule()
+
+  @get:Rule(order = COMPOSE_TEST_RULE_ORDER)
+  val composeTestRule = createComposeRule()
 
   private lateinit var customMainActivity: CustomMainActivity
   private lateinit var uiDevice: UiDevice
@@ -146,29 +156,29 @@ class SearchFragmentTestForCustomApp {
       }
     }
     UiThreadStatement.runOnUiThread {
-      customMainActivity.navigate(customMainActivity.readerFragmentResId)
+      customMainActivity.navigate(customMainActivity.readerFragmentRoute)
     }
     openZimFileInReader(zimFile = downloadingZimFile)
     openSearchWithQuery()
     val searchTerm = "gard"
-    val searchedItem = "Gardanta Spirito"
+    val searchedItem = "Gardanta Spirito - Андивионский Научный Альянс"
     search {
       // test with fast typing/deleting
-      searchWithFrequentlyTypedWords(searchTerm)
-      assertSearchSuccessful(searchedItem)
-      deleteSearchedQueryFrequently(searchTerm, uiDevice)
+      searchWithFrequentlyTypedWords(searchTerm, composeTestRule = composeTestRule)
+      assertSearchSuccessful(searchedItem, composeTestRule)
+      deleteSearchedQueryFrequently(searchTerm, uiDevice, composeTestRule = composeTestRule)
 
       // test with a short delay typing/deleting to
       // properly test the cancelling of previously searching task
-      searchWithFrequentlyTypedWords(searchTerm, 50)
-      assertSearchSuccessful(searchedItem)
-      deleteSearchedQueryFrequently(searchTerm, uiDevice, 50)
+      searchWithFrequentlyTypedWords(searchTerm, 50, composeTestRule)
+      assertSearchSuccessful(searchedItem, composeTestRule)
+      deleteSearchedQueryFrequently(searchTerm, uiDevice, 50, composeTestRule)
 
       // test with a long delay typing/deleting to
       // properly execute the search query letter by letter
-      searchWithFrequentlyTypedWords(searchTerm, 300)
-      assertSearchSuccessful(searchedItem)
-      deleteSearchedQueryFrequently(searchTerm, uiDevice, 300)
+      searchWithFrequentlyTypedWords(searchTerm, 300, composeTestRule)
+      assertSearchSuccessful(searchedItem, composeTestRule)
+      deleteSearchedQueryFrequently(searchTerm, uiDevice, 300, composeTestRule)
       // to close the keyboard
       pressBack()
       // go to reader screen
@@ -179,16 +189,16 @@ class SearchFragmentTestForCustomApp {
     // frequently searched for article, and clicked on the searched item.
     search {
       // test by searching 10 article and clicking on them
-      searchAndClickOnArticle(searchTerm)
-      searchAndClickOnArticle("eilum")
-      searchAndClickOnArticle("page")
-      searchAndClickOnArticle("list")
-      searchAndClickOnArticle("ladder")
-      searchAndClickOnArticle("welc")
-      searchAndClickOnArticle("js")
-      searchAndClickOnArticle("hizo")
-      searchAndClickOnArticle("fad")
-      searchAndClickOnArticle("forum")
+      searchAndClickOnArticle(searchTerm, composeTestRule)
+      searchAndClickOnArticle("eilum", composeTestRule)
+      searchAndClickOnArticle("page", composeTestRule)
+      searchAndClickOnArticle("list", composeTestRule)
+      searchAndClickOnArticle("ladder", composeTestRule)
+      searchAndClickOnArticle("welc", composeTestRule)
+      searchAndClickOnArticle("js", composeTestRule)
+      searchAndClickOnArticle("hizo", composeTestRule)
+      searchAndClickOnArticle("fad", composeTestRule)
+      searchAndClickOnArticle("forum", composeTestRule)
       assertArticleLoaded()
     }
   }
@@ -226,40 +236,37 @@ class SearchFragmentTestForCustomApp {
         }
       }
       UiThreadStatement.runOnUiThread {
-        customMainActivity.navigate(customMainActivity.readerFragmentResId)
+        customMainActivity.navigate(customMainActivity.readerFragmentRoute)
       }
       openZimFileInReader(zimFile = downloadingZimFile)
       openSearchWithQuery(searchTerms[0])
       // wait for searchFragment become visible on screen.
       delay(2000)
-      val navHostFragment: NavHostFragment =
-        customMainActivity.supportFragmentManager
-          .findFragmentById(
-            customMainActivity.activityCustomMainBinding.customNavController.id
-          ) as NavHostFragment
-      val searchFragment = navHostFragment.childFragmentManager.fragments[0] as SearchFragment
+      val searchFragment = customMainActivity.supportFragmentManager.fragments
+        .filterIsInstance<SearchFragment>()
+        .firstOrNull()
       for (i in 1..100) {
         // This will execute the render method 100 times frequently.
         val searchTerm = searchTerms[i % searchTerms.size]
-        searchFragment.searchViewModel.actions.trySend(Action.Filter(searchTerm)).isSuccess
+        searchFragment?.searchViewModel?.actions?.trySend(Action.Filter(searchTerm))?.isSuccess
       }
       for (i in 1..100) {
         // this will execute the render method 100 times with 100MS delay.
         delay(100)
         val searchTerm = searchTerms[i % searchTerms.size]
-        searchFragment.searchViewModel.actions.trySend(Action.Filter(searchTerm)).isSuccess
+        searchFragment?.searchViewModel?.actions?.trySend(Action.Filter(searchTerm))?.isSuccess
       }
       for (i in 1..100) {
         // this will execute the render method 100 times with 200MS delay.
         delay(200)
         val searchTerm = searchTerms[i % searchTerms.size]
-        searchFragment.searchViewModel.actions.trySend(Action.Filter(searchTerm)).isSuccess
+        searchFragment?.searchViewModel?.actions?.trySend(Action.Filter(searchTerm))?.isSuccess
       }
       for (i in 1..100) {
         // this will execute the render method 100 times with 200MS delay.
         delay(300)
         val searchTerm = searchTerms[i % searchTerms.size]
-        searchFragment.searchViewModel.actions.trySend(Action.Filter(searchTerm)).isSuccess
+        searchFragment?.searchViewModel?.actions?.trySend(Action.Filter(searchTerm))?.isSuccess
       }
     }
 
@@ -284,20 +291,23 @@ class SearchFragmentTestForCustomApp {
         }
       }
     UiThreadStatement.runOnUiThread {
-      customMainActivity.navigate(customMainActivity.readerFragmentResId)
+      customMainActivity.navigate(customMainActivity.readerFragmentRoute)
     }
     openZimFileInReader(zimFile = downloadingZimFile)
     search {
       // click on home button to load the main page of ZIM file.
-      clickOnHomeButton()
+      clickOnHomeButton(composeTestRule)
       // click on an article to load the other page.
-      clickOnAFoolForYouArticle()
-      assertAFoolForYouArticleLoaded()
+      clickOnAFoolForYouArticle(composeTestRule)
+      composeTestRule.mainClock.advanceTimeByFrame()
+      assertAFoolForYouArticleLoaded(composeTestRule)
+      composeTestRule.waitUntilTimeout()
       // open note screen.
-      openNoteFragment()
-      pressBack()
+      openNoteFragment(customMainActivity as CoreMainActivity, composeTestRule)
+      composeTestRule.waitUntilTimeout()
+      composeTestRule.onNodeWithTag(NAVIGATION_ICON_TESTING_TAG).performClick()
       // after came back check the previously loaded article is still showing or not.
-      assertAFoolForYouArticleLoaded()
+      assertAFoolForYouArticleLoaded(composeTestRule)
     }
   }
 
@@ -312,21 +322,18 @@ class SearchFragmentTestForCustomApp {
     zimFile: File? = null
   ) {
     UiThreadStatement.runOnUiThread {
-      val navHostFragment: NavHostFragment =
-        customMainActivity.supportFragmentManager
-          .findFragmentById(
-            customMainActivity.activityCustomMainBinding.customNavController.id
-          ) as NavHostFragment
       val customReaderFragment =
-        navHostFragment.childFragmentManager.fragments[0] as CustomReaderFragment
+        customMainActivity.supportFragmentManager.fragments
+          .filterIsInstance<CustomReaderFragment>()
+          .firstOrNull()
       runBlocking {
         assetFileDescriptor?.let {
-          customReaderFragment.openZimFile(
+          customReaderFragment?.openZimFile(
             ZimReaderSource(assetFileDescriptorList = listOf(assetFileDescriptor)),
             true
           )
         } ?: run {
-          customReaderFragment.openZimFile(
+          customReaderFragment?.openZimFile(
             ZimReaderSource(zimFile),
             true
           )

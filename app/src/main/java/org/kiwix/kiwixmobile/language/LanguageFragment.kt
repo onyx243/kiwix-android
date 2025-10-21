@@ -47,7 +47,6 @@ import org.kiwix.kiwixmobile.language.viewmodel.LanguageViewModel
 import javax.inject.Inject
 
 const val SAVE_ICON_TESTING_TAG = "saveLanguages"
-const val SEARCH_FIELD_TESTING_TAG = "searchField"
 
 class LanguageFragment : BaseFragment() {
   private val languageViewModel by lazy { viewModel<LanguageViewModel>(viewModelFactory) }
@@ -81,7 +80,7 @@ class LanguageFragment : BaseFragment() {
             isSearchActive = isSearchActive,
             onSearchClick = { isSearchActive = true },
             onSaveClick = {
-              languageViewModel.actions.tryEmit(Action.SaveAll)
+              languageViewModel.actions.tryEmit(Action.Save)
             }
           ),
           onClearClick = { resetSearchState() },

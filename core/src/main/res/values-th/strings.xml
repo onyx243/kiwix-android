@@ -17,8 +17,6 @@
   <string name="menu_search_in_text">ค้นหาในข้อความ</string>
   <string name="bookmarks">ที่คั่นหน้าเว็บ</string>
   <string name="menu_random_article">สุ่มบทความ</string>
-  <string name="menu_full_screen">เต็มหน้าจอ</string>
-  <string name="menu_exit_full_screen">ออกจากโหมดเต็มหน้าจอ</string>
   <string name="menu_read_aloud">อ่านออกเสียง</string>
   <string name="menu_read_aloud_stop">หยุดอ่าน</string>
   <string name="menu_support_kiwix">สนับสนุน Kiwix</string>
@@ -89,7 +87,6 @@
   <string name="go_to_previous_page">ไปยังหน้าก่อนหน้านี้</string>
   <string name="go_to_next_page">ไปยังหน้าถัดไป</string>
   <string name="table_of_contents">สารบัญ</string>
-  <string name="select_languages">เลือกภาษา</string>
   <string name="save_languages">บันทึก</string>
   <string name="expand">ขยาย</string>
   <string name="history">ประวัติ</string>

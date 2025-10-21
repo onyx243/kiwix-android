@@ -18,24 +18,24 @@
 
 package org.kiwix.kiwixmobile.custom.download.effects
 
+import io.mockk.coVerify
 import io.mockk.mockk
-import io.mockk.verify
 import org.junit.jupiter.api.Test
 import org.kiwix.kiwixmobile.core.downloader.Downloader
-import org.kiwix.sharedFunctions.book
+import org.kiwix.sharedFunctions.libkiwixBook
 
 internal class DownloadCustomTest {
   @Test
   fun `invokeWith queues download with ZimUrl`() {
     val downloader = mockk<Downloader>()
     DownloadCustom(downloader).invokeWith(mockk())
-    verify {
+    coVerify {
       downloader.download(expectedBook())
     }
   }
 
   private fun expectedBook() =
-    book(
+    libkiwixBook(
       "custom",
       "",
       "",

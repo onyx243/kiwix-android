@@ -21,41 +21,35 @@ package org.kiwix.kiwixmobile.nav.destination.reader
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.util.AttributeSet
 import android.view.Menu
 import android.view.MenuInflater
 import android.view.View
-import android.view.View.GONE
-import android.view.View.VISIBLE
-import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.net.toUri
-import androidx.core.view.isVisible
-import androidx.drawerlayout.widget.DrawerLayout
-import com.google.android.material.bottomnavigation.BottomNavigationView
+import androidx.lifecycle.lifecycleScope
+import androidx.navigation.NavOptions
 import kotlinx.coroutines.launch
-import org.kiwix.kiwixmobile.R
 import org.kiwix.kiwixmobile.cachedComponent
-import org.kiwix.kiwixmobile.core.R.anim
-import org.kiwix.kiwixmobile.core.R.drawable
 import org.kiwix.kiwixmobile.core.R.string
 import org.kiwix.kiwixmobile.core.base.BaseActivity
 import org.kiwix.kiwixmobile.core.base.FragmentActivityExtensions.Super
 import org.kiwix.kiwixmobile.core.base.FragmentActivityExtensions.Super.ShouldCall
-import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.setupDrawerToggle
-import org.kiwix.kiwixmobile.core.extensions.coreMainActivity
+import org.kiwix.kiwixmobile.core.downloader.downloadManager.ZERO
+import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.consumeObservable
+import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.getObservableNavigationResult
 import org.kiwix.kiwixmobile.core.extensions.isFileExist
-import org.kiwix.kiwixmobile.core.extensions.setBottomMarginToFragmentContainerView
-import org.kiwix.kiwixmobile.core.extensions.setImageDrawableCompat
 import org.kiwix.kiwixmobile.core.extensions.snack
 import org.kiwix.kiwixmobile.core.extensions.toast
+import org.kiwix.kiwixmobile.core.extensions.update
 import org.kiwix.kiwixmobile.core.main.CoreMainActivity
-import org.kiwix.kiwixmobile.core.main.CoreReaderFragment
-import org.kiwix.kiwixmobile.core.main.CoreWebViewClient
-import org.kiwix.kiwixmobile.core.main.RestoreOrigin
-import org.kiwix.kiwixmobile.core.main.RestoreOrigin.FromExternalLaunch
-import org.kiwix.kiwixmobile.core.main.RestoreOrigin.FromSearchScreen
-import org.kiwix.kiwixmobile.core.main.ToolbarScrollingKiwixWebView
+import org.kiwix.kiwixmobile.core.main.PAGE_URL_KEY
+import org.kiwix.kiwixmobile.core.main.ZIM_FILE_URI_KEY
+import org.kiwix.kiwixmobile.core.main.reader.CoreReaderFragment
+import org.kiwix.kiwixmobile.core.main.reader.HIDE_TAB_SWITCHER_DELAY
+import org.kiwix.kiwixmobile.core.main.reader.RestoreOrigin
+import org.kiwix.kiwixmobile.core.main.reader.RestoreOrigin.FromExternalLaunch
+import org.kiwix.kiwixmobile.core.main.reader.RestoreOrigin.FromSearchScreen
+import org.kiwix.kiwixmobile.core.main.reader.SEARCH_ITEM_TITLE_KEY
 import org.kiwix.kiwixmobile.core.page.history.adapter.WebViewHistoryItem
 import org.kiwix.kiwixmobile.core.reader.ZimReaderSource
 import org.kiwix.kiwixmobile.core.reader.ZimReaderSource.Companion.fromDatabaseValue
@@ -64,9 +58,9 @@ import org.kiwix.kiwixmobile.core.utils.TAG_CURRENT_FILE
 import org.kiwix.kiwixmobile.core.utils.TAG_KIWIX
 import org.kiwix.kiwixmobile.core.utils.files.FileUtils
 import org.kiwix.kiwixmobile.core.utils.files.Log
+import org.kiwix.kiwixmobile.main.KiwixMainActivity
+import org.kiwix.kiwixmobile.ui.KiwixDestination
 import java.io.File
-
-private const val HIDE_TAB_SWITCHER_DELAY: Long = 300
 
 class KiwixReaderFragment : CoreReaderFragment() {
   private var isFullScreenVideo: Boolean = false
@@ -79,24 +73,29 @@ class KiwixReaderFragment : CoreReaderFragment() {
     super.onViewCreated(view, savedInstanceState)
 
     val activity = activity as CoreMainActivity
-    noOpenBookButton?.setOnClickListener {
-      activity.navigate(
-        KiwixReaderFragmentDirections.actionNavigationReaderToNavigationLibrary()
-      )
+    readerScreenState.update {
+      copy(onOpenLibraryButtonClicked = {
+        val navOptions = NavOptions.Builder()
+          .setPopUpTo(KiwixDestination.Reader.route, inclusive = true)
+          .build()
+        activity.navigate(KiwixDestination.Library.route, navOptions)
+      })
     }
-    activity.supportActionBar?.setDisplayHomeAsUpEnabled(true)
-    toolbar?.let { activity.setupDrawerToggle(it, true) }
+    activity.enableLeftDrawer()
     openPageInBookFromNavigationArguments()
   }
 
   @Suppress("MagicNumber")
   private fun openPageInBookFromNavigationArguments() {
     showProgressBarWithProgress(30)
-    val args = KiwixReaderFragmentArgs.fromBundle(requireArguments())
+    val kiwixMainActivity = activity as? KiwixMainActivity
+    val zimFileUri = getNavigationResult(ZIM_FILE_URI_KEY, kiwixMainActivity)
+    val pageUrl = getNavigationResult(PAGE_URL_KEY, kiwixMainActivity)
+    val searchItemTitle = getNavigationResult(SEARCH_ITEM_TITLE_KEY, kiwixMainActivity)
     coreReaderLifeCycleScope?.launch {
-      if (args.pageUrl.isNotEmpty()) {
-        if (args.zimFileUri.isNotEmpty()) {
-          tryOpeningZimFile(args.zimFileUri)
+      if (pageUrl.isNotEmpty()) {
+        if (zimFileUri.isNotEmpty()) {
+          tryOpeningZimFile(zimFileUri)
         } else {
           // Set up bookmarks for the current book when opening bookmarks from the Bookmark screen.
           // This is necessary because we are not opening the ZIM file again; the bookmark is
@@ -105,19 +104,29 @@ class KiwixReaderFragment : CoreReaderFragment() {
           zimReaderContainer?.zimFileReader?.let(::setUpBookmarks)
         }
         hideProgressBar()
-        loadUrlWithCurrentWebview(args.pageUrl)
+        loadUrlWithCurrentWebview(pageUrl)
       } else {
-        if (args.zimFileUri.isNotEmpty()) {
-          tryOpeningZimFile(args.zimFileUri)
+        if (zimFileUri.isNotEmpty()) {
+          tryOpeningZimFile(zimFileUri)
         } else {
+          isWebViewHistoryRestoring = true
+          isFromManageExternalLaunch = true
           val restoreOrigin =
-            if (args.searchItemTitle.isNotEmpty()) FromSearchScreen else FromExternalLaunch
+            if (searchItemTitle.isNotEmpty()) FromSearchScreen else FromExternalLaunch
           manageExternalLaunchAndRestoringViewState(restoreOrigin)
         }
       }
-      requireArguments().clear()
+      // Consume the argument.
+      kiwixMainActivity?.apply {
+        consumeObservable<String>(ZIM_FILE_URI_KEY)
+        consumeObservable<String>(PAGE_URL_KEY)
+        consumeObservable<String>(SEARCH_ITEM_TITLE_KEY)
+      }
     }
   }
+
+  private fun getNavigationResult(key: String, kiwixMainActivity: KiwixMainActivity?) =
+    kiwixMainActivity?.getObservableNavigationResult<String>(key)?.value.orEmpty()
 
   private suspend fun tryOpeningZimFile(zimFileUri: String) {
     // Stop any ongoing WebView loading and clear the WebView list
@@ -153,11 +162,6 @@ class KiwixReaderFragment : CoreReaderFragment() {
     openZimFile(zimReaderSource)
   }
 
-  override fun loadDrawerViews() {
-    drawerLayout = requireActivity().findViewById(R.id.navigation_container)
-    tableDrawerRightContainer = requireActivity().findViewById(R.id.reader_drawer_nav_view)
-  }
-
   override fun openHomeScreen() {
     Handler(Looper.getMainLooper()).postDelayed({
       if (webViewList.isEmpty()) {
@@ -180,55 +184,32 @@ class KiwixReaderFragment : CoreReaderFragment() {
    * @see closeAllTabs
    */
   override fun hideTabSwitcher(shouldCloseZimBook: Boolean) {
-    actionBar?.let { actionBar ->
-      actionBar.setDisplayShowTitleEnabled(true)
-      toolbar?.let { activity?.setupDrawerToggle(it, true) }
-
-      setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
-
-      closeAllTabsButton?.setImageDrawableCompat(drawable.ic_close_black_24dp)
-      if (tabSwitcherRoot?.isVisible == true) {
-        tabSwitcherRoot?.visibility = GONE
-        startAnimation(tabSwitcherRoot, anim.slide_up)
-        progressBar?.visibility = View.GONE
-        progressBar?.progress = 0
-        contentFrame?.visibility = View.VISIBLE
+    enableLeftDrawer()
+    (requireActivity() as CoreMainActivity).showBottomAppBar()
+    if (webViewList.isEmpty()) {
+      readerMenuState?.hideTabSwitcher()
+      exitBook(shouldCloseZimBook)
+    } else {
+      // Reset the top margin of web views to 0 to remove any previously set margin
+      // This ensures that the web views are displayed without any additional
+      // top margin for kiwix main app.
+      // setTopMarginToWebViews(0)
+      readerScreenState.update {
+        copy(
+          shouldShowBottomAppBar = true,
+          pageLoadingItem = false to ZERO,
+        )
       }
-      mainMenu?.showWebViewOptions(true)
-      if (webViewList.isEmpty()) {
-        exitBook(shouldCloseZimBook)
-      } else {
-        // Reset the top margin of web views to 0 to remove any previously set margin
-        // This ensures that the web views are displayed without any additional
-        // top margin for kiwix main app.
-        setTopMarginToWebViews(0)
-        selectTab(currentWebViewIndex)
-      }
+      readerMenuState?.showWebViewOptions(urlIsValid())
+      selectTab(currentWebViewIndex)
     }
-  }
-
-  private fun setFragmentContainerBottomMarginToSizeOfNavBar() {
-    val bottomNavigationView =
-      requireActivity().findViewById<BottomNavigationView>(R.id.bottom_nav_view)
-    bottomNavigationView?.let {
-      setBottomMarginToNavHostContainer(
-        bottomNavigationView.measuredHeight
-      )
-    }
-  }
-
-  override fun onPause() {
-    super.onPause()
-    // ScrollingViewWithBottomNavigationBehavior changes the margin to the size of the nav bar,
-    // this resets the margin to zero, before fragment navigation.
-    setBottomMarginToNavHostContainer(0)
   }
 
   @Suppress("DEPRECATION")
   override fun onCreateOptionsMenu(menu: Menu, menuInflater: MenuInflater) {
     super.onCreateOptionsMenu(menu, menuInflater)
     if (zimReaderContainer?.zimFileReader == null) {
-      mainMenu?.hideBookSpecificMenuItems()
+      readerMenuState?.hideBookSpecificMenuItems()
     }
   }
 
@@ -239,13 +220,12 @@ class KiwixReaderFragment : CoreReaderFragment() {
 
   override fun onResume() {
     super.onResume()
-    setFragmentContainerBottomMarginToSizeOfNavBar()
-    if (isFullScreenVideo || isInFullScreenMode()) {
+    if (isFullScreenVideo) {
       hideNavBar()
     }
   }
 
-  override fun restoreViewStateOnInvalidWebViewHistory() {
+  override suspend fun restoreViewStateOnInvalidWebViewHistory() {
     Log.d(TAG_KIWIX, "Kiwix normal start, no zimFile loaded last time  -> display home page")
     exitBook()
   }
@@ -263,7 +243,7 @@ class KiwixReaderFragment : CoreReaderFragment() {
    * @param restoreOrigin Indicates whether the restoration is triggered from an external launch or the search screen.
    * @param onComplete  Callback to be invoked upon completion of the restoration process.
    */
-  override fun restoreViewStateOnValidWebViewHistory(
+  override suspend fun restoreViewStateOnValidWebViewHistory(
     webViewHistoryItemList: List<WebViewHistoryItem>,
     currentTab: Int,
     restoreOrigin: RestoreOrigin,
@@ -271,26 +251,27 @@ class KiwixReaderFragment : CoreReaderFragment() {
   ) {
     when (restoreOrigin) {
       FromExternalLaunch -> {
-        coreReaderLifeCycleScope?.launch {
-          if (!isAdded) return@launch
-          val settings =
-            activity?.getSharedPreferences(SharedPreferenceUtil.PREF_KIWIX_MOBILE, 0)
-          val zimReaderSource = fromDatabaseValue(settings?.getString(TAG_CURRENT_FILE, null))
-          if (zimReaderSource?.canOpenInLibkiwix() == true) {
-            if (zimReaderContainer?.zimReaderSource == null) {
-              openZimFile(zimReaderSource, isFromManageExternalLaunch = true)
-              Log.d(
-                TAG_KIWIX,
-                "Kiwix normal start, Opened last used zimFile: -> ${zimReaderSource.toDatabase()}"
-              )
-            } else {
-              zimReaderContainer?.zimFileReader?.let(::setUpBookmarks)
-            }
-            restoreTabs(webViewHistoryItemList, currentTab, onComplete)
+        if (!isAdded) return
+        val settings =
+          activity?.getSharedPreferences(SharedPreferenceUtil.PREF_KIWIX_MOBILE, 0)
+        val zimReaderSource = fromDatabaseValue(settings?.getString(TAG_CURRENT_FILE, null))
+        if (zimReaderSource?.canOpenInLibkiwix() == true) {
+          if (zimReaderContainer?.zimReaderSource == null) {
+            openZimFile(zimReaderSource, isFromManageExternalLaunch = true)
+            Log.d(
+              TAG_KIWIX,
+              "Kiwix normal start, Opened last used zimFile: -> ${zimReaderSource.toDatabase()}"
+            )
           } else {
-            getCurrentWebView()?.snack(string.zim_not_opened)
-            exitBook() // hide the options for zim file to avoid unexpected UI behavior
+            zimReaderContainer?.zimFileReader?.let(::setUpBookmarks)
           }
+          restoreTabs(webViewHistoryItemList, currentTab, onComplete)
+        } else {
+          readerScreenState.value.snackBarHostState.snack(
+            requireActivity().getString(string.zim_not_opened),
+            lifecycleScope = lifecycleScope
+          )
+          exitBook() // hide the options for zim file to avoid unexpected UI behavior
         }
       }
 
@@ -298,23 +279,6 @@ class KiwixReaderFragment : CoreReaderFragment() {
         restoreTabs(webViewHistoryItemList, currentTab, onComplete)
       }
     }
-  }
-
-  @Throws(IllegalArgumentException::class)
-  override fun createWebView(attrs: AttributeSet?): ToolbarScrollingKiwixWebView? {
-    requireNotNull(activityMainRoot)
-    return ToolbarScrollingKiwixWebView(
-      requireContext(),
-      this,
-      attrs ?: throw IllegalArgumentException("AttributeSet must not be null"),
-      activityMainRoot as ViewGroup,
-      requireNotNull(videoView),
-      CoreWebViewClient(this, requireNotNull(zimReaderContainer)),
-      requireNotNull(toolbarContainer),
-      requireNotNull(bottomToolbar),
-      sharedPreferenceUtil = requireNotNull(sharedPreferenceUtil),
-      parentNavigationBar = requireActivity().findViewById(R.id.bottom_nav_view)
-    )
   }
 
   override fun onFullscreenVideoToggled(isFullScreen: Boolean) {
@@ -327,36 +291,15 @@ class KiwixReaderFragment : CoreReaderFragment() {
     super.onFullscreenVideoToggled(isFullScreen)
   }
 
-  override fun openFullScreen() {
-    super.openFullScreen()
-    hideNavBar()
-  }
-
-  override fun closeFullScreen() {
-    super.closeFullScreen()
-    showNavBar()
-    setFragmentContainerBottomMarginToSizeOfNavBar()
-  }
-
   private fun hideNavBar() {
-    requireActivity().findViewById<BottomNavigationView>(R.id.bottom_nav_view).visibility = GONE
-    setBottomMarginToNavHostContainer(0)
+    (requireActivity() as CoreMainActivity).hideBottomAppBar()
   }
 
   private fun showNavBar() {
-    // show the navBar if fullScreenMode is not active.
-    if (!isInFullScreenMode()) {
-      requireActivity().findViewById<BottomNavigationView>(R.id.bottom_nav_view).visibility =
-        VISIBLE
-    }
+    (requireActivity() as CoreMainActivity).showBottomAppBar()
   }
 
   override fun createNewTab() {
     newMainPageTab()
-  }
-
-  private fun setBottomMarginToNavHostContainer(margin: Int) {
-    coreMainActivity.navHostContainer
-      .setBottomMarginToFragmentContainerView(margin)
   }
 }

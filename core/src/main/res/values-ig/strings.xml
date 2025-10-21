@@ -17,8 +17,6 @@
   <string name="menu_search_in_text">chọta na ibe</string>
   <string name="bookmarks">Ibe edokwubaraGoogle</string>
   <string name="menu_random_article">Edemede n’enweghị usoro</string>
-  <string name="menu_full_screen">Ihe nkiri zuru ezu</string>
-  <string name="menu_exit_full_screen">Wepụ ihuenyo zuru oke</string>
   <string name="menu_read_aloud">Gụpụta ya n’olu dara ụda</string>
   <string name="menu_read_aloud_stop">Kwụsị ịgụpụta n’olu dara ụda</string>
   <string name="menu_support_kiwix">Kwado Kiwix</string>
@@ -201,7 +199,6 @@
   <string name="go_to_previous_page">Gaa na peeji gara aga</string>
   <string name="go_to_next_page">Gaa na peeji na-esote</string>
   <string name="table_of_contents">Tebulu ọdịnaya</string>
-  <string name="select_languages">Họrọ asụsụ</string>
   <string name="save_languages">Chekwaa asụsụ</string>
   <string name="expand">Gbásà</string>
   <string name="history">Akụkọ ihe mere eme</string>

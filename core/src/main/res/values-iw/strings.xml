@@ -18,8 +18,6 @@
   <string name="menu_search_in_text">למצוא בדף</string>
   <string name="bookmarks">סימניות</string>
   <string name="menu_random_article">ערך אקראי</string>
-  <string name="menu_full_screen">מסך מלא</string>
-  <string name="menu_exit_full_screen">יציאה ממסך מלא</string>
   <string name="menu_read_aloud">הקראה בקול</string>
   <string name="menu_read_aloud_stop">להפסיק להקריא בקול</string>
   <string name="menu_support_kiwix">לתמוך בקיוויקס</string>
@@ -170,6 +168,7 @@
   <string name="no">לא</string>
   <string name="confirm_stop_download_title">לעצור הורדה?</string>
   <string name="confirm_stop_download_msg">לעצור את ההורדה הזאת?</string>
+  <string name="change_storage">החלפה</string>
   <string name="tts_not_enabled">הקראה בקול אינה זמינה עבור קובץ ה־ZIM הזה</string>
   <string name="texttospeech_initialization_failed">אתחול ההקראה בקול נכשל. נא לנסות שוב</string>
   <string name="texttospeech_error">שגיאה בלתי־צפויה בטקסט לדיבור. נא לנסות שוב</string>
@@ -219,7 +218,6 @@
   <string name="go_to_previous_page">מעבר לדף הקודם</string>
   <string name="go_to_next_page">מעבר לדף הבא</string>
   <string name="table_of_contents">תוכן עניינים</string>
-  <string name="select_languages">בחירת שפות</string>
   <string name="save_languages">שמירת שפות</string>
   <string name="expand">הרחבה</string>
   <string name="history">היסטוריה</string>
@@ -392,4 +390,5 @@
   <string name="resuming_state">מתחילים מחדש</string>
   <string name="downloading_state">בהורדה</string>
   <string name="download_failed_state">זה לא עבד</string>
+  <string name="searchview_description_clear">ניקוי שאילתה</string>
 </resources>

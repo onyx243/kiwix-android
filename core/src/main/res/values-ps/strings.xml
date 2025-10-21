@@ -3,6 +3,7 @@
 * Af420
 * Ahmed-Najib-Biabani-Ibrahimkhel
 * Amjad Khan
+* شاه زمان پټان
 -->
 <resources>
   <string name="menu_help">مرسته</string>
@@ -11,8 +12,6 @@
   <string name="menu_search_in_text">په متن کې موندل</string>
   <string name="bookmarks">کتاب نخښې</string>
   <string name="menu_random_article">ناټاکلې ليکنه</string>
-  <string name="menu_full_screen">ډکه پرده</string>
-  <string name="menu_exit_full_screen">بشپړ پردې څخه وتل</string>
   <string name="menu_read_aloud">په جگ غږ لوستل</string>
   <string name="menu_read_aloud_stop">په جگ غږ لوستل درول</string>
   <string name="save_media">رسنۍ ساتل لکه…</string>
@@ -20,13 +19,13 @@
   <string name="save_media_saved" fuzzy="true">رسنۍ خپل د انځورونو په ټولگه کې د %1$s په نوم ساتل</string>
   <string name="search_label">پلټل</string>
   <string name="choose_file" fuzzy="true">د ZIM مېنځپانگې يوه دوتنه ټاکل (*.zim)</string>
-  <string name="open_in_new_tab">تړنه په نوې کړکۍ کې پرانيستل</string>
+  <string name="open_in_new_tab">تړنه په نوې کړکۍ کې پرانېستل</string>
   <string name="error_file_not_found">تېروتنه: ستاسې ټاکلې ZIM دوتنه و نه موندل شوه. %s</string>
   <string name="error_file_invalid" fuzzy="true">تېروتنه: ستاسې ټاکلې دوتنه يوه کره ZIM دوتنه نه ده. %s</string>
   <string name="error_article_url_not_found">تېروتنه: ليکنه برسېرېدنه (يو آر ال: %1$s) نابريالئ شوه.</string>
   <string name="pref_display_title">ښکارېدنه</string>
   <string name="pref_info_title">مالومات</string>
-  <string name="pref_info_version">بڼه</string>
+  <string name="pref_info_version">بل‌بڼه</string>
   <string name="pref_dark_mode" fuzzy="true">د شپې بڼه</string>
   <string name="pref_dark_mode_summary">رنگ اړول شوې ليکنې ښکاره کول</string>
   <string name="pref_back_to_top">بېرته سر ته</string>
@@ -46,7 +45,7 @@
   <string name="rate_dialog_positive">ارزول!</string>
   <string name="no_thanks">نه، مننه</string>
   <string name="rate_dialog_neutral">وروسته</string>
-  <string name="pref_newtab_background_title">نوې کړکۍ په شاځمکه کې پرانيستل</string>
+  <string name="pref_newtab_background_title">نوې کړکۍ په شاځمکه کې پرانېستل</string>
   <string name="pref_newtab_background_summary">کله چې يوه نوې کړکۍ پرانيزئ هغه به په شاځمکه کې پرانيستل شي</string>
   <string name="search_widget_text">کيويس پلټل</string>
   <string name="speech_prompt_text">خبري د لټون لپاره %s</string>
@@ -72,7 +71,10 @@
   <string name="time_left">کيڼ</string>
   <string name="time_today">نن</string>
   <string name="time_yesterday">پرون</string>
+  <string name="your_language">غوره‌شوې ژبه: %s</string>
   <string name="other_languages">نورې ژبې:</string>
+  <string name="all_languages">ټولې ژبې</string>
+  <string name="no_language_available">هېڅ ژبه د لاسرسي وړ نه ده</string>
   <string name="no_bookmarks" fuzzy="true">بې کتاب نښو!</string>
   <string name="reader">لوستونکی</string>
 </resources>

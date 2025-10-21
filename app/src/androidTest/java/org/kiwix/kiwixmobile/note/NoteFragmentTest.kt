@@ -23,6 +23,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
+import androidx.navigation.NavOptions
 import androidx.preference.PreferenceManager
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.accessibility.AccessibilityChecks
@@ -42,18 +43,20 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.kiwix.kiwixmobile.BaseActivityTest
-import org.kiwix.kiwixmobile.R
+import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.setNavigationResultOnCurrent
+import org.kiwix.kiwixmobile.core.main.CoreMainActivity
+import org.kiwix.kiwixmobile.core.main.ZIM_FILE_URI_KEY
 import org.kiwix.kiwixmobile.core.utils.LanguageUtils.Companion.handleLocaleChange
 import org.kiwix.kiwixmobile.core.utils.SharedPreferenceUtil
 import org.kiwix.kiwixmobile.core.utils.TestingUtils.COMPOSE_TEST_RULE_ORDER
 import org.kiwix.kiwixmobile.core.utils.TestingUtils.RETRY_RULE_ORDER
 import org.kiwix.kiwixmobile.main.KiwixMainActivity
 import org.kiwix.kiwixmobile.nav.destination.library.library
-import org.kiwix.kiwixmobile.nav.destination.library.local.LocalLibraryFragmentDirections
 import org.kiwix.kiwixmobile.testutils.RetryRule
 import org.kiwix.kiwixmobile.testutils.TestUtils
 import org.kiwix.kiwixmobile.testutils.TestUtils.closeSystemDialogs
 import org.kiwix.kiwixmobile.testutils.TestUtils.isSystemUINotRespondingDialogVisible
+import org.kiwix.kiwixmobile.ui.KiwixDestination
 import org.kiwix.kiwixmobile.utils.StandardActions
 import java.io.File
 import java.io.FileOutputStream
@@ -91,6 +94,7 @@ class NoteFragmentTest : BaseActivityTest() {
       ActivityScenario.launch(KiwixMainActivity::class.java).apply {
         moveToState(Lifecycle.State.RESUMED)
         onActivity {
+          kiwixMainActivity = it
           handleLocaleChange(
             it,
             "en",
@@ -118,7 +122,7 @@ class NoteFragmentTest : BaseActivityTest() {
   @Test
   fun verifyNoteFragment() {
     activityScenario.onActivity {
-      it.navigate(R.id.notesFragment)
+      it.navigate(KiwixDestination.Notes.route)
     }
     note {
       assertToolbarExist(composeTestRule)
@@ -131,27 +135,24 @@ class NoteFragmentTest : BaseActivityTest() {
   fun testUserCanSeeNotesForDeletedFiles() {
     deletePreviouslySavedNotes()
     loadZimFileInReader("testzim.zim")
-    StandardActions.closeDrawer() // close the drawer if open before running the test cases.
+    StandardActions.closeDrawer(kiwixMainActivity as CoreMainActivity) // close the drawer if open before running the test cases.
     note {
-      clickOnNoteMenuItem(context)
+      clickOnNoteMenuItem(composeTestRule)
       assertNoteDialogDisplayed(composeTestRule)
       writeDemoNote(composeTestRule)
       saveNote(composeTestRule)
       pressBack()
-      openNoteFragment()
+      openNoteFragment(kiwixMainActivity as CoreMainActivity, composeTestRule)
       assertToolbarExist(composeTestRule)
       clickOnSavedNote(composeTestRule)
       clickOnOpenNote(composeTestRule)
       assertNoteSaved(composeTestRule)
-      // to close the note dialog.
-      pressBack()
-      // to close the notes fragment.
-      pressBack()
+      closeAddNoteDialog(composeTestRule)
     }
 
     // goto local library fragment to delete the ZIM file
     UiThreadStatement.runOnUiThread {
-      kiwixMainActivity.navigate(R.id.libraryFragment)
+      kiwixMainActivity.navigate(KiwixDestination.Library.route)
     }
 
     library {
@@ -161,12 +162,11 @@ class NoteFragmentTest : BaseActivityTest() {
     }
 
     note {
-      openNoteFragment()
+      openNoteFragment(kiwixMainActivity as CoreMainActivity, composeTestRule)
       assertToolbarExist(composeTestRule)
       clickOnSavedNote(composeTestRule)
       clickOnOpenNote(composeTestRule)
       assertNoteSaved(composeTestRule)
-      pressBack()
     }
     if (Build.VERSION.SDK_INT > Build.VERSION_CODES.N_MR1) {
       // temporary disabled on Android 25
@@ -180,20 +180,16 @@ class NoteFragmentTest : BaseActivityTest() {
     loadZimFileInReader("testzim.zim")
     note {
       assertHomePageIsLoadedOfTestZimFile()
-      clickOnNoteMenuItem(context)
+      clickOnNoteMenuItem(composeTestRule)
       assertNoteDialogDisplayed(composeTestRule)
       writeDemoNote(composeTestRule)
       saveNote(composeTestRule)
-      pressBack()
-      openNoteFragment()
+      closeAddNoteDialog(composeTestRule)
+      openNoteFragment(kiwixMainActivity as CoreMainActivity, composeTestRule)
       assertToolbarExist(composeTestRule)
       clickOnSavedNote(composeTestRule)
       clickOnOpenNote(composeTestRule)
       assertNoteSaved(composeTestRule)
-      // to close the note dialog.
-      pressBack()
-      // to close the notes fragment.
-      pressBack()
     }
   }
 
@@ -203,12 +199,12 @@ class NoteFragmentTest : BaseActivityTest() {
       deletePreviouslySavedNotes()
       loadZimFileInReader("testzim.zim")
       note {
-        clickOnNoteMenuItem(context)
+        clickOnNoteMenuItem(composeTestRule)
         assertNoteDialogDisplayed(composeTestRule)
         writeDemoNote(composeTestRule)
         saveNote(composeTestRule)
-        pressBack()
-        openNoteFragment()
+        closeAddNoteDialog(composeTestRule)
+        openNoteFragment(kiwixMainActivity as CoreMainActivity, composeTestRule)
         assertToolbarExist(composeTestRule)
         clickOnSavedNote(composeTestRule)
         clickOnOpenNote(composeTestRule)
@@ -226,27 +222,47 @@ class NoteFragmentTest : BaseActivityTest() {
     loadZimFileInReader("testzim.zim")
     // Save a note.
     note {
-      clickOnNoteMenuItem(context)
+      clickOnNoteMenuItem(composeTestRule)
       assertNoteDialogDisplayed(composeTestRule)
       writeDemoNote(composeTestRule)
       saveNote(composeTestRule)
-      pressBack()
+      closeAddNoteDialog(composeTestRule)
     }
     // Delete that note from "Note" screen.
     deletePreviouslySavedNotes()
     // Test the note file is deleted or not.
     note {
-      clickOnNoteMenuItem(context)
+      clickOnNoteMenuItem(composeTestRule)
       assertNoteDialogDisplayed(composeTestRule)
       assertNotDoesNotExist(composeTestRule)
       pressBack()
     }
   }
 
+  @Test
+  fun testSavedNotePageOpenInReader() {
+    deletePreviouslySavedNotes()
+    loadZimFileInReader("testzim.zim")
+    note {
+      assertHomePageIsLoadedOfTestZimFile()
+      clickOnAndroidArticle(composeTestRule)
+      clickOnNoteMenuItem(composeTestRule)
+      assertNoteDialogDisplayed(composeTestRule)
+      writeDemoNote(composeTestRule)
+      saveNote(composeTestRule)
+      closeAddNoteDialog(composeTestRule)
+      clickOnBackwardButton(composeTestRule)
+      openNoteFragment(kiwixMainActivity as CoreMainActivity, composeTestRule)
+      clickOnSavedNote(composeTestRule)
+      clickOnOpenArticle(composeTestRule)
+      assertAndroidArticleLoadedInReader(composeTestRule)
+    }
+  }
+
   private fun deletePreviouslySavedNotes() {
     // delete the notes if any saved to properly run the test scenario
     note {
-      openNoteFragment()
+      openNoteFragment(kiwixMainActivity as CoreMainActivity, composeTestRule)
       assertToolbarExist(composeTestRule)
       clickOnTrashIcon(composeTestRule)
       assertDeleteNoteDialogDisplayed(composeTestRule)
@@ -259,7 +275,7 @@ class NoteFragmentTest : BaseActivityTest() {
   private fun loadZimFileInReader(zimFileName: String) {
     activityScenario.onActivity {
       kiwixMainActivity = it
-      kiwixMainActivity.navigate(R.id.libraryFragment)
+      kiwixMainActivity.navigate(KiwixDestination.Library.route)
     }
 
     val loadFileStream =
@@ -278,10 +294,13 @@ class NoteFragmentTest : BaseActivityTest() {
       }
     }
     UiThreadStatement.runOnUiThread {
-      kiwixMainActivity.navigate(
-        LocalLibraryFragmentDirections.actionNavigationLibraryToNavigationReader()
-          .apply { zimFileUri = zimFile.toUri().toString() }
-      )
+      val navOptions = NavOptions.Builder()
+        .setPopUpTo(KiwixDestination.Reader.route, false)
+        .build()
+      kiwixMainActivity.apply {
+        kiwixMainActivity.navigate(KiwixDestination.Reader.route, navOptions)
+        setNavigationResultOnCurrent(zimFile.toUri().toString(), ZIM_FILE_URI_KEY)
+      }
     }
   }
 

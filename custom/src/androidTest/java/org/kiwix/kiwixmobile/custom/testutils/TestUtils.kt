@@ -21,16 +21,19 @@ package org.kiwix.kiwixmobile.custom.testutils
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
+import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject
 import androidx.test.uiautomator.UiSelector
 import org.kiwix.kiwixmobile.core.utils.files.Log
 import java.io.File
+import java.util.Timer
+import java.util.TimerTask
 
 object TestUtils {
   private const val TAG = "TESTUTILS"
-  const val TEST_PAUSE_MS_FOR_SEARCH_TEST = 1000
+  const val TEST_PAUSE_MS_FOR_SEARCH_TEST = 10000
   const val TEST_PAUSE_MS = 3000
 
   @JvmStatic
@@ -87,6 +90,31 @@ object TestUtils {
       } else {
         throw ignore // No more retries, rethrow the exception
       }
+    }
+  }
+
+  fun ComposeContentTestRule.waitUntilTimeout(timeoutMillis: Long = TEST_PAUSE_MS.toLong()) {
+    AsyncTimer.start(timeoutMillis)
+    waitUntil(
+      condition = { AsyncTimer.expired },
+      timeoutMillis = timeoutMillis + 1000
+    )
+  }
+
+  object AsyncTimer {
+    var expired = false
+    fun start(delay: Long = 1000) {
+      expired = false
+      val timerTask = TimerTaskImpl {
+        expired = true
+      }
+      Timer().schedule(timerTask, delay)
+    }
+  }
+
+  class TimerTaskImpl(private val runnable: Runnable) : TimerTask() {
+    override fun run() {
+      runnable.run()
     }
   }
 

@@ -19,28 +19,24 @@ package org.kiwix.kiwixmobile.language.viewmodel
 
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.kiwix.kiwixmobile.core.base.SideEffect
-import org.kiwix.kiwixmobile.core.dao.NewLanguagesDao
+import org.kiwix.kiwixmobile.core.utils.SharedPreferenceUtil
 import org.kiwix.kiwixmobile.core.zim_manager.Language
 
-@Suppress("InjectDispatcher", "TooGenericExceptionCaught")
+@Suppress("InjectDispatcher")
 data class SaveLanguagesAndFinish(
-  private val languages: List<Language>,
-  private val languageDao: NewLanguagesDao,
+  val languages: Language,
+  private val sharedPreferenceUtil: SharedPreferenceUtil,
   private val lifecycleScope: CoroutineScope
 ) : SideEffect<Unit> {
   override fun invokeWith(activity: AppCompatActivity) {
     lifecycleScope.launch {
-      try {
-        withContext(Dispatchers.IO) {
-          languageDao.insert(languages)
-        }
+      runCatching {
+        sharedPreferenceUtil.selectedOnlineContentLanguage = languages.languageCode
         activity.onBackPressedDispatcher.onBackPressed()
-      } catch (e: Throwable) {
-        e.printStackTrace()
+      }.onFailure {
+        it.printStackTrace()
       }
     }
   }

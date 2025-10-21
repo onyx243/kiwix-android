@@ -22,8 +22,6 @@
   <string name="menu_search_in_text">Najít na stránce</string>
   <string name="bookmarks">Záložky</string>
   <string name="menu_random_article">Náhodný článek</string>
-  <string name="menu_full_screen">Celá obrazovka</string>
-  <string name="menu_exit_full_screen">Ukončit režim celé obrazovky</string>
   <string name="menu_read_aloud">Číst nahlas</string>
   <string name="menu_read_aloud_stop">Zastavit čtení nahlas</string>
   <string name="menu_support_kiwix">Podpořte Kiwix</string>
@@ -196,7 +194,6 @@
   <string name="go_to_previous_page">Jdi na předchozí stránku</string>
   <string name="go_to_next_page">Přejít na následující stránku</string>
   <string name="table_of_contents">Obsah</string>
-  <string name="select_languages">Vyberte jazyky</string>
   <string name="save_languages">Uložit jazyky</string>
   <string name="expand">Rozšířit</string>
   <string name="history">Historie</string>

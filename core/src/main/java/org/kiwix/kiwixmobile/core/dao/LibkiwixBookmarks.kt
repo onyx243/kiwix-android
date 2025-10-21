@@ -20,7 +20,6 @@ package org.kiwix.kiwixmobile.core.dao
 
 import android.os.Build
 import android.os.Environment
-import android.util.Base64
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,13 +33,15 @@ import kotlinx.coroutines.withContext
 import org.kiwix.kiwixmobile.core.CoreApp
 import org.kiwix.kiwixmobile.core.DarkModeConfig
 import org.kiwix.kiwixmobile.core.R
+import org.kiwix.kiwixmobile.core.di.modules.BOOKMARK_LIBRARY
+import org.kiwix.kiwixmobile.core.di.modules.BOOKMARK_MANAGER
 import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.isCustomApp
 import org.kiwix.kiwixmobile.core.extensions.deleteFile
+import org.kiwix.kiwixmobile.core.extensions.getFavicon
 import org.kiwix.kiwixmobile.core.extensions.isFileExist
 import org.kiwix.kiwixmobile.core.extensions.toast
 import org.kiwix.kiwixmobile.core.page.adapter.Page
 import org.kiwix.kiwixmobile.core.page.bookmark.adapter.LibkiwixBookmarkItem
-import org.kiwix.kiwixmobile.core.reader.ILLUSTRATION_SIZE
 import org.kiwix.kiwixmobile.core.reader.ZimFileReader
 import org.kiwix.kiwixmobile.core.reader.ZimReaderContainer
 import org.kiwix.kiwixmobile.core.reader.ZimReaderSource
@@ -54,12 +55,13 @@ import org.kiwix.libzim.Archive
 import org.kiwix.libzim.SuggestionSearcher
 import java.io.File
 import javax.inject.Inject
+import javax.inject.Named
 
 class LibkiwixBookmarks @Inject constructor(
-  val library: Library,
-  manager: Manager,
-  val sharedPreferenceUtil: SharedPreferenceUtil,
-  private val bookDao: NewBookDao,
+  @Named(BOOKMARK_LIBRARY) private val library: Library,
+  @Named(BOOKMARK_MANAGER) private val manager: Manager,
+  private val sharedPreferenceUtil: SharedPreferenceUtil,
+  private val libkiwixBookOnDisk: LibkiwixBookOnDisk,
   private val zimReaderContainer: ZimReaderContainer?
 ) : PageDao {
   /**
@@ -70,16 +72,14 @@ class LibkiwixBookmarks @Inject constructor(
   private var bookmarkList: List<LibkiwixBookmarkItem> = arrayListOf()
   private var libraryBooksList: List<String> = arrayListOf()
 
-  @Suppress("InjectDispatcher", "TooGenericExceptionCaught")
+  @Suppress("InjectDispatcher")
   private val bookmarkListFlow: MutableStateFlow<List<LibkiwixBookmarkItem>> by lazy {
     MutableStateFlow<List<LibkiwixBookmarkItem>>(emptyList()).also { flow ->
       CoroutineScope(Dispatchers.IO).launch {
-        try {
+        runCatching {
           val bookmarks = getBookmarksList()
           flow.emit(bookmarks)
-        } catch (e: Exception) {
-          e.printStackTrace()
-        }
+        }.onFailure { it.printStackTrace() }
       }
     }
   }
@@ -205,7 +205,7 @@ class LibkiwixBookmarks @Inject constructor(
         library.addBook(libKiwixBook).also {
           // now library has changed so update our library list.
           libraryBooksList = library.booksIds.toList()
-          Log.d(
+          Log.e(
             TAG,
             "Added Book to Library:\n" +
               "ZIM File Path: ${book.path}\n" +
@@ -234,12 +234,41 @@ class LibkiwixBookmarks @Inject constructor(
         CoroutineScope(dispatcher).launch {
           writeBookMarksAndSaveLibraryToFile()
           updateFlowBookmarkList()
+          removeBookFromLibraryIfNoRelatedBookmarksAreStored(dispatcher, bookmarks)
         }
       }
   }
 
   fun deleteBookmark(bookId: String, bookmarkUrl: String) {
     deleteBookmarks(listOf(LibkiwixBookmarkItem(zimId = bookId, bookmarkUrl = bookmarkUrl)))
+  }
+
+  /**
+   * Removes books from the library that no longer have any associated bookmarks.
+   *
+   * This function checks if any of the books associated with the given deleted bookmarks
+   * are still referenced by other existing bookmarks. If not, those books are removed from the library.
+   *
+   * @param dispatcher The coroutine dispatcher to run the operation on (typically Dispatchers.IO).
+   * @param deletedBookmarks The list of bookmarks that were just deleted.
+   */
+  private suspend fun removeBookFromLibraryIfNoRelatedBookmarksAreStored(
+    dispatcher: CoroutineDispatcher,
+    deletedBookmarks: List<LibkiwixBookmarkItem>
+  ) {
+    withContext(dispatcher) {
+      val currentBookmarks = getBookmarksList()
+      val deletedZimIds = deletedBookmarks.map { it.zimId }.distinct()
+
+      deletedZimIds.forEach { zimId ->
+        val stillExists = currentBookmarks.any { it.zimId == zimId }
+        if (!stillExists) {
+          library.removeBookById(zimId)
+          Log.d(TAG, "Removed book from library since no bookmarks exist for: $zimId")
+        }
+      }
+    }
+    writeBookMarksAndSaveLibraryToFile()
   }
 
   /**
@@ -272,23 +301,22 @@ class LibkiwixBookmarks @Inject constructor(
       bookmarkArray.mapNotNull { bookmark ->
         // Check if the library contains the book associated with the bookmark.
         val book =
-          if (isBookAlreadyExistInLibrary(bookmark.bookId)) {
-            library.getBookById(bookmark.bookId)
-          } else {
-            Log.d(
-              TAG,
-              "Library does not contain the book for this bookmark:\n" +
-                "Book Title: ${bookmark.bookTitle}\n" +
-                "Bookmark URL: ${bookmark.url}"
-            )
-            null
-          }
+          runCatching {
+            if (isBookAlreadyExistInLibrary(bookmark.bookId)) {
+              library.getBookById(bookmark.bookId)
+            } else {
+              Log.d(
+                TAG,
+                "Library does not contain the book for this bookmark:\n" +
+                  "Book Title: ${bookmark.bookTitle}\n" +
+                  "Bookmark URL: ${bookmark.url}"
+              )
+              null
+            }
+          }.getOrNull()
 
         // Check if the book has an illustration of the specified size and encode it to Base64.
-        val favicon =
-          book?.getIllustration(ILLUSTRATION_SIZE)?.data?.let {
-            Base64.encodeToString(it, Base64.DEFAULT)
-          }
+        val favicon = book?.getFavicon()
 
         val zimReaderSource = book?.path?.let { ZimReaderSource(File(it)) }
         // Return the LibkiwixBookmarkItem, filtering out null results.
@@ -419,7 +447,7 @@ class LibkiwixBookmarks @Inject constructor(
       readBookmarkFile(bookmarkFile.canonicalPath)
     }
     // Add the ZIM files to the library for validating the bookmarks.
-    bookDao.getBooks().forEach {
+    libkiwixBookOnDisk.getBooks().forEach {
       addBookToLibrary(file = it.zimReaderSource.file)
     }
     // Save the imported bookmarks to the current library.

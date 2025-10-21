@@ -31,6 +31,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.kiwix.kiwixmobile.core.BuildConfig
@@ -52,14 +54,13 @@ import javax.inject.Inject
 private const val INITIAL_SCALE = 100
 
 @SuppressLint("ViewConstructor")
-@SuppressWarnings("LongParameterList")
+@Suppress("LongParameterList")
 open class KiwixWebView @SuppressLint("SetJavaScriptEnabled") constructor(
   context: Context,
   private val callback: WebViewCallback,
   attrs: AttributeSet,
-  private var nonVideoView: ViewGroup?,
-  videoView: ViewGroup,
-  private val webViewClient: CoreWebViewClient,
+  videoView: ViewGroup?,
+  private val coreWebViewClient: CoreWebViewClient,
   val sharedPreferenceUtil: SharedPreferenceUtil
 ) : VideoEnabledWebView(context, attrs) {
   @Inject
@@ -71,9 +72,7 @@ open class KiwixWebView @SuppressLint("SetJavaScriptEnabled") constructor(
     (context as Activity).window.apply {
       if (isFullScreen) {
         showFullScreenMode(this)
-      } else if (!sharedPreferenceUtil.prefFullScreen) {
-        // close the fullScreenMode if application is not running in the fullScreenMode.
-        // when closing the video's fullScreenMode, otherwise no need to close the fullScreenMode.
+      } else {
         closeFullScreenMode(this)
       }
     }
@@ -98,9 +97,9 @@ open class KiwixWebView @SuppressLint("SetJavaScriptEnabled") constructor(
     }
     setInitialScale(INITIAL_SCALE)
     clearCache(true)
-    setWebViewClient(webViewClient)
+    webViewClient = coreWebViewClient
     webChromeClient =
-      KiwixWebChromeClient(callback, nonVideoView, videoView, this).apply {
+      KiwixWebChromeClient(callback, videoView, this).apply {
         setOnToggledFullscreen(
           object : ToggledFullscreenCallback {
             override fun toggledFullscreen(fullscreen: Boolean) {
@@ -116,7 +115,7 @@ open class KiwixWebView @SuppressLint("SetJavaScriptEnabled") constructor(
     val result = hitTestResult
     if (result.type == HitTestResult.SRC_ANCHOR_TYPE) {
       result.extra?.let {
-        if (!webViewClient.handleUnsupportedFiles(it)) {
+        if (!coreWebViewClient.handleUnsupportedFiles(it)) {
           callback.webViewLongClick(it)
         }
       }
@@ -145,16 +144,13 @@ open class KiwixWebView @SuppressLint("SetJavaScriptEnabled") constructor(
     super.onAttachedToWindow()
     // cancel any previous running job.
     textZoomJob?.cancel()
-    textZoomJob = CoroutineScope(SupervisorJob() + Dispatchers.Main).launch {
-      sharedPreferenceUtil.textZooms.collect {
-        settings.textZoom = it
-      }
-    }
+    textZoomJob = sharedPreferenceUtil.textZooms
+      .onEach { settings.textZoom = it }
+      .launchIn(CoroutineScope(SupervisorJob() + Dispatchers.Main))
   }
 
   override fun onDetachedFromWindow() {
     super.onDetachedFromWindow()
-    nonVideoView = null
     textZoomJob?.cancel()
     textZoomJob = null
   }

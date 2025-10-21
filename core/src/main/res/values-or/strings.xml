@@ -13,8 +13,6 @@
   <string name="menu_search_in_text">ଲେଖାରେ ଖୋଜିବେ</string>
   <string name="bookmarks">ବୁକମାର୍କ</string>
   <string name="menu_random_article">ଯାହିତାହି ପ୍ରସଙ୍ଗ</string>
-  <string name="menu_full_screen">ପୂରା ସ୍କ୍ରିନ</string>
-  <string name="menu_exit_full_screen">ପୂରା ସ୍କ୍ରିନ ସ୍ଥିତିରୁ ବାହାରି ଆସନ୍ତୁ</string>
   <string name="menu_read_aloud">ପଢିବେ</string>
   <string name="menu_read_aloud_stop">ପଢିବା ବନ୍ଦ କରିବେ</string>
   <string name="menu_support_kiwix">Kiwix କୁ ସମର୍ଥନ କରନ୍ତୁ |</string>
@@ -189,7 +187,6 @@
   <string name="go_to_previous_page">ପୂର୍ବ ପୃଷ୍ଠାକୁ ଯାଆନ୍ତୁ |</string>
   <string name="go_to_next_page">ପରବର୍ତ୍ତୀ ପୃଷ୍ଠାକୁ ଯାଆନ୍ତୁ</string>
   <string name="table_of_contents">ବିଷଯ଼ବସ୍ତୁ ସାରଣୀ</string>
-  <string name="select_languages">ଭାଷା ଚୟନ କରନ୍ତୁ</string>
   <string name="save_languages">ଭାଷା ସଞ୍ଚୟ କରନ୍ତ</string>
   <string name="expand">ବିସ୍ତାର କରନ୍ତୁ</string>
   <string name="history">ଇତିହାସ</string>

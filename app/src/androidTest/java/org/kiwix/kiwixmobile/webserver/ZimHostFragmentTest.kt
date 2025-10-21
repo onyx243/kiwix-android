@@ -22,6 +22,8 @@ import android.Manifest
 import android.content.Context
 import android.os.Build
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.accessibility.AccessibilityChecks
@@ -40,7 +42,8 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.kiwix.kiwixmobile.R
+import org.kiwix.kiwixmobile.core.main.CoreMainActivity
+import org.kiwix.kiwixmobile.core.ui.components.NAVIGATION_ICON_TESTING_TAG
 import org.kiwix.kiwixmobile.core.utils.LanguageUtils.Companion.handleLocaleChange
 import org.kiwix.kiwixmobile.core.utils.SharedPreferenceUtil
 import org.kiwix.kiwixmobile.core.utils.TestingUtils.COMPOSE_TEST_RULE_ORDER
@@ -49,6 +52,7 @@ import org.kiwix.kiwixmobile.main.KiwixMainActivity
 import org.kiwix.kiwixmobile.nav.destination.library.library
 import org.kiwix.kiwixmobile.testutils.RetryRule
 import org.kiwix.kiwixmobile.testutils.TestUtils
+import org.kiwix.kiwixmobile.ui.KiwixDestination
 import org.kiwix.kiwixmobile.utils.StandardActions
 import java.io.File
 import java.io.FileOutputStream
@@ -65,6 +69,8 @@ class ZimHostFragmentTest {
   private lateinit var sharedPreferenceUtil: SharedPreferenceUtil
 
   private lateinit var activityScenario: ActivityScenario<KiwixMainActivity>
+
+  lateinit var kiwixMainActivity: KiwixMainActivity
 
   private val permissions =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -143,9 +149,10 @@ class ZimHostFragmentTest {
       Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
     ) {
       activityScenario.onActivity {
-        it.navigate(R.id.libraryFragment)
+        kiwixMainActivity = it
+        it.navigate(KiwixDestination.Library.route)
       }
-      StandardActions.closeDrawer() // close the drawer if open before running the test cases.
+      StandardActions.closeDrawer(kiwixMainActivity as CoreMainActivity) // close the drawer if open before running the test cases.
       // delete all the ZIM files showing in the LocalLibrary
       // screen to properly test the scenario.
       library {
@@ -158,7 +165,7 @@ class ZimHostFragmentTest {
       zimHost {
         refreshLibraryList(composeTestRule)
         assertZimFilesLoaded(composeTestRule)
-        openZimHostFragment()
+        openZimHostFragment(kiwixMainActivity as CoreMainActivity, composeTestRule)
 
         // Check if server is already started
         stopServerIfAlreadyStarted(composeTestRule)
@@ -209,6 +216,33 @@ class ZimHostFragmentTest {
       }
     }
     LeakAssertions.assertNoLeaks()
+  }
+
+  @Test
+  fun testZIMFilesShowingOnZimHostScreen() {
+    activityScenario.onActivity {
+      kiwixMainActivity = it
+      it.navigate(KiwixDestination.Library.route)
+    }
+    // delete all the ZIM files showing in the LocalLibrary
+    // screen to properly test the scenario.
+    library {
+      refreshList(composeTestRule)
+      waitUntilZimFilesRefreshing(composeTestRule)
+      deleteZimIfExists(composeTestRule)
+    }
+    loadZimFileInApplication("testzim.zim")
+    loadZimFileInApplication("small.zim")
+    zimHost {
+      refreshLibraryList(composeTestRule)
+      assertZimFilesLoaded(composeTestRule)
+      openZimHostFragment(kiwixMainActivity as CoreMainActivity, composeTestRule)
+      assertZimFilesLoaded(composeTestRule)
+      composeTestRule.onNodeWithTag(NAVIGATION_ICON_TESTING_TAG).performClick()
+      composeTestRule.mainClock.advanceTimeByFrame()
+      openZimHostFragment(kiwixMainActivity as CoreMainActivity, composeTestRule)
+      assertZimFilesLoaded(composeTestRule)
+    }
   }
 
   private fun loadZimFileInApplication(zimFileName: String) {

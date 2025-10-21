@@ -20,15 +20,18 @@ package org.kiwix.kiwixmobile.zimManager.fileselectView.effects
 
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.NavOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.kiwix.kiwixmobile.core.R
 import org.kiwix.kiwixmobile.core.base.SideEffect
+import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.setNavigationResultOnCurrent
 import org.kiwix.kiwixmobile.core.extensions.toast
+import org.kiwix.kiwixmobile.core.main.ZIM_FILE_URI_KEY
 import org.kiwix.kiwixmobile.core.zim_manager.fileselect_view.BooksOnDiskListItem
 import org.kiwix.kiwixmobile.main.KiwixMainActivity
-import org.kiwix.kiwixmobile.nav.destination.library.local.LocalLibraryFragmentDirections.actionNavigationLibraryToNavigationReader
+import org.kiwix.kiwixmobile.ui.KiwixDestination
 
 @Suppress("InjectDispatcher")
 data class OpenFileWithNavigation(private val bookOnDisk: BooksOnDiskListItem.BookOnDisk) :
@@ -45,11 +48,13 @@ data class OpenFileWithNavigation(private val bookOnDisk: BooksOnDiskListItem.Bo
           activity.getString(R.string.error_file_not_found, zimReaderSource.toDatabase())
         )
       } else {
-        activity.navigate(
-          actionNavigationLibraryToNavigationReader().apply {
-            zimFileUri = zimReaderSource.toDatabase()
-          }
-        )
+        val navOptions = NavOptions.Builder()
+          .setPopUpTo(KiwixDestination.Reader.route, inclusive = true)
+          .build()
+        activity.apply {
+          navigate(KiwixDestination.Reader.route, navOptions)
+          setNavigationResultOnCurrent(zimReaderSource.toDatabase(), ZIM_FILE_URI_KEY)
+        }
       }
     }
   }

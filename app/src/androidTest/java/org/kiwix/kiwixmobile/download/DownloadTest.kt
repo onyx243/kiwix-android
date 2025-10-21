@@ -17,6 +17,9 @@
  */
 package org.kiwix.kiwixmobile.download
 
+import android.accessibilityservice.AccessibilityService
+import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.util.Log
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -24,6 +27,7 @@ import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
 import androidx.preference.PreferenceManager
 import androidx.test.core.app.ActivityScenario
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.espresso.IdlingPolicies
 import androidx.test.espresso.IdlingRegistry
 import androidx.test.espresso.accessibility.AccessibilityChecks
@@ -47,7 +51,7 @@ import org.junit.BeforeClass
 import org.junit.Rule
 import org.junit.Test
 import org.kiwix.kiwixmobile.BaseActivityTest
-import org.kiwix.kiwixmobile.R
+import org.kiwix.kiwixmobile.core.main.CoreMainActivity
 import org.kiwix.kiwixmobile.core.utils.LanguageUtils.Companion.handleLocaleChange
 import org.kiwix.kiwixmobile.core.utils.SharedPreferenceUtil
 import org.kiwix.kiwixmobile.core.utils.TestingUtils.COMPOSE_TEST_RULE_ORDER
@@ -59,8 +63,12 @@ import org.kiwix.kiwixmobile.testutils.RetryRule
 import org.kiwix.kiwixmobile.testutils.TestUtils
 import org.kiwix.kiwixmobile.testutils.TestUtils.closeSystemDialogs
 import org.kiwix.kiwixmobile.testutils.TestUtils.isSystemUINotRespondingDialogVisible
+import org.kiwix.kiwixmobile.testutils.TestUtils.waitUntilTimeout
+import org.kiwix.kiwixmobile.ui.KiwixDestination
 import org.kiwix.kiwixmobile.utils.KiwixIdlingResource.Companion.getInstance
 import java.util.concurrent.TimeUnit
+
+const val TWO_MINUTES_IN_MILLISECONDS = 2 * 60 * 1000
 
 @LargeTest
 class DownloadTest : BaseActivityTest() {
@@ -128,7 +136,7 @@ class DownloadTest : BaseActivityTest() {
     BaristaSleepInteractions.sleep(TestUtils.TEST_PAUSE_MS.toLong())
     activityScenario.onActivity {
       kiwixMainActivity = it
-      it.navigate(R.id.libraryFragment)
+      it.navigate(KiwixDestination.Library.route)
     }
     try {
       // delete all the ZIM files showing in the LocalLibrary
@@ -139,7 +147,7 @@ class DownloadTest : BaseActivityTest() {
         deleteZimIfExists(composeTestRule)
       }
       downloadRobot {
-        clickDownloadOnBottomNav()
+        clickDownloadOnBottomNav(composeTestRule)
         waitForDataToLoad(composeTestRule = composeTestRule)
         stopDownloadIfAlreadyStarted(composeTestRule)
         downloadZimFile(composeTestRule)
@@ -159,7 +167,7 @@ class DownloadTest : BaseActivityTest() {
           )
         }
         UiThreadStatement.runOnUiThread {
-          kiwixMainActivity.navigate(R.id.libraryFragment)
+          kiwixMainActivity.navigate(KiwixDestination.Library.route)
         }
         // refresh the local library list to show the downloaded zim file
         library { refreshList(composeTestRule) }
@@ -179,7 +187,8 @@ class DownloadTest : BaseActivityTest() {
   fun testPauseAndResumeInOtherLanguage() {
     BaristaSleepInteractions.sleep(TestUtils.TEST_PAUSE_MS.toLong())
     activityScenario.onActivity {
-      it.navigate(R.id.libraryFragment)
+      kiwixMainActivity = it
+      it.navigate(KiwixDestination.Library.route)
     }
     try {
       // delete all the ZIM files showing in the LocalLibrary
@@ -192,16 +201,20 @@ class DownloadTest : BaseActivityTest() {
       downloadRobot {
         // change the application language
         topLevel {
-          clickSettingsOnSideNav {
-            clickLanguagePreference()
-            assertLanguagePrefDialogDisplayed()
-            selectDeviceDefaultLanguage()
-            clickLanguagePreference()
-            assertLanguagePrefDialogDisplayed()
-            selectAlbanianLanguage()
+          clickSettingsOnSideNav(kiwixMainActivity as CoreMainActivity, composeTestRule) {
+            clickLanguagePreference(composeTestRule)
+            assertLanguagePrefDialogDisplayed(composeTestRule)
+            selectDeviceDefaultLanguage(composeTestRule)
+            // Advance the main clock to settle the frame of compose.
+            composeTestRule.mainClock.advanceTimeByFrame()
+            clickLanguagePreference(composeTestRule)
+            assertLanguagePrefDialogDisplayed(composeTestRule)
+            selectAlbanianLanguage(composeTestRule)
+            // Advance the main clock to settle the frame of compose.
+            composeTestRule.mainClock.advanceTimeByFrame()
           }
         }
-        clickDownloadOnBottomNav()
+        clickDownloadOnBottomNav(composeTestRule)
         waitForDataToLoad(composeTestRule = composeTestRule)
         stopDownloadIfAlreadyStarted(composeTestRule)
         downloadZimFile(composeTestRule)
@@ -213,12 +226,14 @@ class DownloadTest : BaseActivityTest() {
         stopDownloadIfAlreadyStarted(composeTestRule)
         // select the default device language to perform other test cases.
         topLevel {
-          clickSettingsOnSideNav {
-            clickLanguagePreference()
-            assertLanguagePrefDialogDisplayed()
-            selectDeviceDefaultLanguage()
+          clickSettingsOnSideNav(kiwixMainActivity as CoreMainActivity, composeTestRule) {
+            clickLanguagePreference(composeTestRule)
+            assertLanguagePrefDialogDisplayed(composeTestRule)
+            selectDeviceDefaultLanguage(composeTestRule)
+            // Advance the main clock to settle the frame of compose.
+            composeTestRule.mainClock.advanceTimeByFrame()
             // check if the device default language is selected or not.
-            clickLanguagePreference()
+            clickLanguagePreference(composeTestRule)
             // close the language dialog.
             pressBack()
           }
@@ -228,6 +243,61 @@ class DownloadTest : BaseActivityTest() {
       Assert.fail(
         "Couldn't find downloaded file ' Off the Grid ' Original Exception: ${e.message}"
       )
+    }
+  }
+
+  @Test
+  fun downloadZIMFileInBackground() {
+    if (Build.VERSION.SDK_INT > Build.VERSION_CODES.N_MR1) {
+      activityScenario.onActivity {
+        kiwixMainActivity = it
+        it.navigate(KiwixDestination.Library.route)
+      }
+      // delete all the ZIM files showing in the LocalLibrary
+      // screen to properly test the scenario.
+      library {
+        refreshList(composeTestRule)
+        waitUntilZimFilesRefreshing(composeTestRule)
+        deleteZimIfExists(composeTestRule)
+      }
+      downloadRobot {
+        clickDownloadOnBottomNav(composeTestRule)
+        waitForDataToLoad(composeTestRule = composeTestRule)
+        stopDownloadIfAlreadyStarted(composeTestRule)
+        searchZappingSauvageFile(composeTestRule)
+        downloadZimFile(composeTestRule)
+        assertDownloadStart(composeTestRule)
+      }
+      // press the home button so that application goes into background
+      InstrumentationRegistry.getInstrumentation().uiAutomation.performGlobalAction(
+        AccessibilityService.GLOBAL_ACTION_HOME
+      )
+      // wait for 2 minutes to download the ZIM file in background.
+      composeTestRule.waitUntilTimeout(TWO_MINUTES_IN_MILLISECONDS.toLong())
+      // relaunch the application.
+      val context = ApplicationProvider.getApplicationContext<Context>()
+      val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+      intent?.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
+      context.startActivity(intent)
+      InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+      activityScenario.onActivity {
+        kiwixMainActivity = it
+        it.navigate(KiwixDestination.Library.route)
+      }
+      library {
+        refreshList(composeTestRule)
+        waitUntilZimFilesRefreshing(composeTestRule)
+        downloadRobot {
+          runCatching {
+            checkIfZimFileDownloaded(composeTestRule)
+          }.onFailure {
+            // if currently downloading check.
+            clickDownloadOnBottomNav(composeTestRule)
+            waitForDataToLoad(composeTestRule = composeTestRule)
+            stopDownloadIfAlreadyStarted(composeTestRule)
+          }
+        }
+      }
     }
   }
 

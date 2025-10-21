@@ -31,17 +31,11 @@ data class OnlineLibraryScreenState(
    */
   val onlineLibraryList: List<LibraryListItem>?,
   /**
-   * Stores the height of the bottom navigation bar in pixels.
-   */
-  val bottomNavigationHeight: Int,
-  /**
    * Controls the visibility and behavior of the "Pull to refresh" animation.
    *
-   * A [Pair] containing:
    *  - [Boolean]: The first boolean triggers/hides the "pull to refresh" animation.
-   *  - [Boolean]: The second boolean enables/disables the "pull to refresh" gesture.
    */
-  val swipeRefreshItem: Pair<Boolean, Boolean>,
+  val isRefreshing: Boolean,
   /**
    * Handles snack bar messages and displays.
    */
@@ -101,5 +95,13 @@ data class OnlineLibraryScreenState(
   /**
    * Triggers when clear button clicked.
    */
-  val clearSearchButtonClickListener: () -> Unit
+  val clearSearchButtonClickListener: () -> Unit,
+  /**
+   * Triggers when user at the end of the online content.
+   */
+  val onLoadMore: (Int) -> Unit,
+  /**
+   * Manages the showing of progressBar at the end of book list when more items is loading.
+   */
+  val isLoadingMoreItem: Boolean
 )

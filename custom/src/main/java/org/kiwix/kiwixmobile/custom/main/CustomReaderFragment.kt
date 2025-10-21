@@ -21,37 +21,43 @@ package org.kiwix.kiwixmobile.custom.main
 import android.app.Dialog
 import android.os.Bundle
 import android.view.Menu
-import android.view.MenuInflater
 import android.view.View
-import android.view.View.GONE
-import android.view.View.VISIBLE
-import android.widget.ImageView
-import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.ui.graphics.Color
 import androidx.core.net.toUri
-import androidx.drawerlayout.widget.DrawerLayout
-import androidx.navigation.fragment.findNavController
+import androidx.navigation.NavOptions
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.kiwix.kiwixmobile.core.R.dimen
+import kotlinx.coroutines.withContext
 import org.kiwix.kiwixmobile.core.base.BaseActivity
+import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.consumeObservable
+import org.kiwix.kiwixmobile.core.extensions.ActivityExtensions.getObservableNavigationResult
 import org.kiwix.kiwixmobile.core.extensions.browserIntent
-import org.kiwix.kiwixmobile.core.extensions.getResizedDrawable
 import org.kiwix.kiwixmobile.core.extensions.isFileExist
-import org.kiwix.kiwixmobile.core.main.CoreReaderFragment
-import org.kiwix.kiwixmobile.core.main.MainMenu
-import org.kiwix.kiwixmobile.core.main.RestoreOrigin
+import org.kiwix.kiwixmobile.core.extensions.update
+import org.kiwix.kiwixmobile.core.main.CoreMainActivity
+import org.kiwix.kiwixmobile.core.main.PAGE_URL_KEY
+import org.kiwix.kiwixmobile.core.main.reader.CoreReaderFragment
+import org.kiwix.kiwixmobile.core.main.reader.ReaderMenuState
+import org.kiwix.kiwixmobile.core.main.reader.RestoreOrigin
 import org.kiwix.kiwixmobile.core.page.history.adapter.WebViewHistoryItem
 import org.kiwix.kiwixmobile.core.reader.ZimReaderSource
+import org.kiwix.kiwixmobile.core.ui.models.IconItem
+import org.kiwix.kiwixmobile.core.ui.theme.White
 import org.kiwix.kiwixmobile.core.utils.LanguageUtils
 import org.kiwix.kiwixmobile.core.utils.dialog.DialogShower
 import org.kiwix.kiwixmobile.core.utils.files.FileUtils.getDemoFilePathForCustomApp
-import org.kiwix.kiwixmobile.core.zim_manager.fileselect_view.BooksOnDiskListItem.BookOnDisk
 import org.kiwix.kiwixmobile.custom.BuildConfig
 import org.kiwix.kiwixmobile.custom.R
 import org.kiwix.kiwixmobile.custom.customActivityComponent
+import org.kiwix.libkiwix.Book
 import java.io.File
 import java.util.Locale
 import javax.inject.Inject
+
+const val OPENING_DOWNLOAD_SCREEN_DELAY = 300L
 
 class CustomReaderFragment : CoreReaderFragment() {
   override fun inject(baseActivity: BaseActivity) {
@@ -75,16 +81,7 @@ class CustomReaderFragment : CoreReaderFragment() {
     }
 
     if (isAdded) {
-      setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED)
-      if (BuildConfig.DISABLE_SIDEBAR) {
-        val toolbarToc =
-          activity?.findViewById<ImageView>(org.kiwix.kiwixmobile.core.R.id.bottom_toolbar_toc)
-        toolbarToc?.isEnabled = false
-      }
-      with(activity as AppCompatActivity) {
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        toolbar?.let(::setUpDrawerToggle)
-      }
+      enableLeftDrawer()
       loadPageFromNavigationArguments()
       if (BuildConfig.DISABLE_EXTERNAL_LINK) {
         // If "external links" are disabled in a custom app,
@@ -96,25 +93,47 @@ class CustomReaderFragment : CoreReaderFragment() {
   }
 
   /**
-   * Overrides the method to configure the hamburger icon. When the "setting title" is disabled
-   * in a custom app, this function set the app logo on hamburger.
+   * Returns the TOC (Table of Contents) button's enabled state and click action.
+   *
+   * In this custom app variant, the TOC button is disabled if [BuildConfig.DISABLE_SIDEBAR] is `true`.
+   * This is typically used when the sidebar functionality is intentionally turned off.
+   *
+   * @return A [Pair] containing:
+   *  - [Boolean]: `true` if the TOC button should be enabled (i.e., sidebar is allowed),
+   *               `false` if it should be disabled (i.e., [DISABLE_SIDEBAR] is `true`).
+   *  - [() -> Unit]: Action to execute when the button is clicked. This will only be invoked if enabled.
    */
-  override fun setUpDrawerToggle(toolbar: Toolbar) {
-    super.setUpDrawerToggle(toolbar)
+  override fun getTocButtonStateAndAction(): Pair<Boolean, () -> Unit> =
+    !BuildConfig.DISABLE_SIDEBAR to { openToc() }
+
+  /**
+   * Returns the tint color for the navigation icon.
+   *
+   * If the custom app is configured to show the app icon in place of the hamburger icon
+   * (i.e., [BuildConfig.DISABLE_TITLE] is true), the tint is set to [Color.Unspecified] to preserve
+   * the original colors of the image.
+   *
+   * Otherwise, [White] is used as the default tint, which is suitable for vector icons.
+   */
+  override fun navigationIconTint(): Color =
     if (BuildConfig.DISABLE_TITLE) {
+      Color.Unspecified
+    } else {
+      White
+    }
+
+  override fun navigationIcon(): IconItem = when {
+    readerMenuState?.isInTabSwitcher == true -> {
+      IconItem.Drawable(org.kiwix.kiwixmobile.core.R.drawable.ic_round_add_white_36dp)
+    }
+
+    BuildConfig.DISABLE_TITLE -> {
       // if the title is disable then set the app logo to hamburger icon,
       // see https://github.com/kiwix/kiwix-android/issues/3528#issuecomment-1814905330
-      val iconSize =
-        resources.getDimensionPixelSize(dimen.hamburger_icon_size)
-      requireActivity().getResizedDrawable(R.mipmap.ic_launcher, iconSize, iconSize)
-        ?.let { drawable ->
-          super.toolbar?.apply {
-            navigationIcon = drawable
-            // remove the default margin between hamburger and placeholder
-            contentInsetStartWithNavigation = 0
-          }
-        }
+      IconItem.MipmapImage(R.mipmap.ic_launcher)
     }
+
+    else -> IconItem.Vector(Icons.Filled.Menu)
   }
 
   /**
@@ -122,30 +141,61 @@ class CustomReaderFragment : CoreReaderFragment() {
    * When the "setting title" is disabled/enabled in a custom app,
    * this function set the visibility of placeholder in toolbar when showing the tabs.
    */
-  override fun setTabSwitcherVisibility(visibility: Int) {
+  override fun showSearchPlaceHolderInToolbar(isTabSwitcherShowing: Boolean) {
     if (BuildConfig.DISABLE_TITLE) {
       // If custom apps are configured to show the placeholder,
       // and if tabs are visible, hide the placeholder.
       // If tabs are hidden, show the placeholder.
-      updateToolbarSearchPlaceholderVisibility(if (visibility == VISIBLE) GONE else VISIBLE)
+      updateToolbarSearchPlaceholderVisibility(!isTabSwitcherShowing)
     } else {
       // Permanently hide the placeholder if the custom app is not configured to show it.
-      updateToolbarSearchPlaceholderVisibility(GONE)
+      updateToolbarSearchPlaceholderVisibility(false)
     }
-    super.setTabSwitcherVisibility(visibility)
+  }
+
+  /**
+   * Handles clicks on the navigation icon in custom apps.
+   * - If the tab switcher is active, triggers the home menu action.
+   * - Otherwise, toggles the navigation drawer: closes it if open; opens it only if the sidebar is enabled.
+   *
+   * This override customizes the default behavior by preventing the drawer from opening
+   * when the sidebar is disabled in the app configuration.
+   */
+  override fun navigationIconClick() {
+    if (readerMenuState?.isInTabSwitcher == true) {
+      onHomeMenuClicked()
+      return
+    }
+
+    val activity = activity as CoreMainActivity
+    if (activity.navigationDrawerIsOpen()) {
+      activity.closeNavigationDrawer()
+    } else if (!BuildConfig.DISABLE_SIDEBAR) {
+      activity.openNavigationDrawer()
+    }
   }
 
   private fun loadPageFromNavigationArguments() {
-    val args = CustomReaderFragmentArgs.fromBundle(requireArguments())
-    if (args.pageUrl.isNotEmpty()) {
-      loadUrlWithCurrentWebview(args.pageUrl)
+    val customMainActivity = activity as? CustomMainActivity
+    val pageUrl =
+      customMainActivity?.getObservableNavigationResult<String>(PAGE_URL_KEY)?.value.orEmpty()
+    if (pageUrl.isNotEmpty()) {
+      loadUrlWithCurrentWebview(pageUrl)
       // Setup bookmark for current book
       // See https://github.com/kiwix/kiwix-android/issues/3541
       zimReaderContainer?.zimFileReader?.let(::setUpBookmarks)
     } else {
-      openObbOrZim(true)
+      isWebViewHistoryRestoring = true
+      isFromManageExternalLaunch = true
+      coreReaderLifeCycleScope?.launch {
+        if (zimReaderContainer?.zimFileReader == null || zimReaderContainer?.zimReaderSource?.exists() == false) {
+          openObbOrZim(true)
+        } else {
+          manageExternalLaunchAndRestoringViewState()
+        }
+      }
     }
-    requireArguments().clear()
+    customMainActivity?.consumeObservable<String>(PAGE_URL_KEY)
   }
 
   /**
@@ -153,7 +203,7 @@ class CustomReaderFragment : CoreReaderFragment() {
    * due to the absence of any history records. In this case, it navigates to the homepage of the
    * ZIM file, as custom apps are expected to have the ZIM file readily available.
    */
-  override fun restoreViewStateOnInvalidWebViewHistory() {
+  override suspend fun restoreViewStateOnInvalidWebViewHistory() {
     openHomeScreen()
   }
 
@@ -161,7 +211,7 @@ class CustomReaderFragment : CoreReaderFragment() {
    * Restores the view state when the webViewHistory data is valid.
    * This method restores the tabs with webView pages history.
    */
-  override fun restoreViewStateOnValidWebViewHistory(
+  override suspend fun restoreViewStateOnValidWebViewHistory(
     webViewHistoryItemList: List<WebViewHistoryItem>,
     currentTab: Int,
     // Unused in custom apps as there is only one ZIM file that is already set.
@@ -172,18 +222,16 @@ class CustomReaderFragment : CoreReaderFragment() {
   }
 
   /**
-   * Sets the locking mode for the sidebar in a custom app. If the app is configured not to show the sidebar,
-   * this function disables the sidebar by locking it in the closed position through the parent class.
-   * https://developer.android.com/reference/kotlin/androidx/drawerlayout/widget/DrawerLayout#LOCK_MODE_LOCKED_CLOSED()
+   * Enables or disables the sidebar in a custom app based on the configuration.
+   * If the app is configured to disable the sidebar, this method disables it;
+   * otherwise, it enables the sidebar.
    */
-  override fun setDrawerLockMode(lockMode: Int) {
-    super.setDrawerLockMode(
-      if (BuildConfig.DISABLE_SIDEBAR) {
-        DrawerLayout.LOCK_MODE_LOCKED_CLOSED
-      } else {
-        lockMode
-      }
-    )
+  override fun enableLeftDrawer() {
+    if (BuildConfig.DISABLE_SIDEBAR) {
+      (requireActivity() as CoreMainActivity).disableLeftDrawer()
+    } else {
+      super.enableLeftDrawer()
+    }
   }
 
   /**
@@ -207,12 +255,13 @@ class CustomReaderFragment : CoreReaderFragment() {
    * @param shouldManageExternalLaunch Indicates whether to manage external launch and
    *                                   restore the view state after opening the file. Default is false.
    */
-  private fun openObbOrZim(shouldManageExternalLaunch: Boolean = false) {
+  @Suppress("InjectDispatcher")
+  private suspend fun openObbOrZim(shouldManageExternalLaunch: Boolean = false) {
     customFileValidator.validate(
       onFilesFound = {
-        coreReaderLifeCycleScope?.launch {
-          when (it) {
-            is ValidationState.HasFile -> {
+        when (it) {
+          is ValidationState.HasFile -> {
+            withContext(Dispatchers.Main) {
               openZimFile(
                 ZimReaderSource(
                   file = it.file,
@@ -228,31 +277,42 @@ class CustomReaderFragment : CoreReaderFragment() {
                 // it means we have created zimFileReader with a fileDescriptor,
                 // so we create a demo file to save it in the database for display on the `ZimHostFragment`.
                 val file = it.file ?: createDemoFile()
-                val bookOnDisk = BookOnDisk(zimFileReader)
-                repositoryActions?.saveBook(bookOnDisk)
+                val book = Book().apply { update(zimFileReader.jniKiwixReader) }
+                repositoryActions?.saveBook(book)
               }
               if (shouldManageExternalLaunch) {
                 // Open the previous loaded pages after ZIM file loads.
                 manageExternalLaunchAndRestoringViewState()
               }
             }
+          }
 
-            is ValidationState.HasBothFiles -> {
-              it.zimFile.delete()
+          is ValidationState.HasBothFiles -> {
+            it.zimFile.delete()
+            withContext(Dispatchers.Main) {
               openZimFile(ZimReaderSource(it.obbFile), true, shouldManageExternalLaunch)
               if (shouldManageExternalLaunch) {
                 // Open the previous loaded pages after ZIM file loads.
                 manageExternalLaunchAndRestoringViewState()
               }
             }
-
-            else -> {}
           }
+
+          else -> {}
         }
       },
       onNoFilesFound = {
         if (sharedPreferenceUtil?.prefIsTest == false) {
-          findNavController().navigate(R.id.customDownloadFragment)
+          delay(OPENING_DOWNLOAD_SCREEN_DELAY)
+          withContext(Dispatchers.Main) {
+            val navOptions = NavOptions.Builder()
+              .setPopUpTo(CustomDestination.Reader.route, true)
+              .build()
+            (activity as? CoreMainActivity)?.navigate(
+              CustomDestination.Downloads.route,
+              navOptions
+            )
+          }
         }
       }
     )
@@ -262,13 +322,6 @@ class CustomReaderFragment : CoreReaderFragment() {
     File(getDemoFilePathForCustomApp(requireActivity())).also {
       if (!it.isFileExist()) it.createNewFile()
     }
-
-  @Suppress("DEPRECATION")
-  override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
-    super.onCreateOptionsMenu(menu, inflater)
-    menu.findItem(org.kiwix.kiwixmobile.core.R.id.menu_help)?.isVisible = false
-    menu.findItem(org.kiwix.kiwixmobile.core.R.id.menu_host_books)?.isVisible = false
-  }
 
   private fun enforcedLanguage(): Boolean {
     val currentLocaleCode = Locale.getDefault().toString()
@@ -288,35 +341,19 @@ class CustomReaderFragment : CoreReaderFragment() {
   }
 
   /**
-   * This method is overridden to set the IDs of the `drawerLayout` and `tableDrawerRightContainer`
-   * specific to the custom module in the `CoreReaderFragment`. Since we have an app and a custom module,
-   * and `CoreReaderFragment` is a common class for both modules, we set the IDs of the custom module
-   * in the parent class to ensure proper integration.
-   */
-  override fun loadDrawerViews() {
-    drawerLayout = requireActivity().findViewById(R.id.custom_drawer_container)
-    tableDrawerRightContainer = requireActivity().findViewById(R.id.activity_main_nav_view)
-  }
-
-  /**
    * Overrides the method to create the main menu for the app. The custom app can be configured to disable
    * features like "read aloud" and "tabs," and this method dynamically generates the menu based on the
    * provided configuration. It takes into account whether read aloud and tabs are enabled or disabled
    * and creates the menu accordingly.
    */
-  override fun createMainMenu(menu: Menu?): MainMenu? {
-    return menu?.let {
-      menuFactory?.create(
-        it,
-        webViewList,
-        urlIsValid(),
-        this,
-        BuildConfig.DISABLE_READ_ALOUD,
-        BuildConfig.DISABLE_TABS,
-        BuildConfig.DISABLE_TITLE
-      )
-    }
-  }
+  override fun createMainMenu(): ReaderMenuState =
+    ReaderMenuState(
+      this,
+      isUrlValidInitially = urlIsValid(),
+      disableReadAloud = BuildConfig.DISABLE_READ_ALOUD,
+      disableTabs = BuildConfig.DISABLE_TABS,
+      disableSearch = BuildConfig.DISABLE_TITLE
+    )
 
   /**
    * Overrides the method to control the functionality of showing the "Open In New Tab" dialog.
@@ -347,25 +384,31 @@ class CustomReaderFragment : CoreReaderFragment() {
    */
   override fun updateTitle() {
     if (BuildConfig.DISABLE_TITLE) {
-      // Set an empty title for the toolbar because we are handling the toolbar click on behalf of this title.
       // Since we have increased the zone for triggering search suggestions (see https://github.com/kiwix/kiwix-android/pull/3566),
       // we need to set this title for handling the toolbar click,
       // even if it is empty. If we do not set up this title,
       // the search screen will open if the user clicks on the toolbar from the tabs screen.
-      actionBar?.title = " "
-      updateToolbarSearchPlaceholderVisibility(VISIBLE)
+      updateToolbarSearchPlaceholderVisibility(true)
     } else {
-      updateToolbarSearchPlaceholderVisibility(GONE)
+      updateToolbarSearchPlaceholderVisibility(false)
       super.updateTitle()
     }
   }
 
-  private fun updateToolbarSearchPlaceholderVisibility(visibility: Int) {
-    toolbarWithSearchPlaceholder?.visibility = visibility
+  private fun updateToolbarSearchPlaceholderVisibility(show: Boolean) {
+    readerScreenState.update {
+      copy(
+        searchPlaceHolderItemForCustomApps = searchPlaceHolderItemForCustomApps.copy(first = show)
+      )
+    }
   }
 
   override fun createNewTab() {
     newMainPageTab()
+  }
+
+  override fun showNoBookOpenViews() {
+    readerScreenState.update { copy(isNoBookOpenInReader = false) }
   }
 
   /**
@@ -393,7 +436,14 @@ class CustomReaderFragment : CoreReaderFragment() {
     super.onResume()
     if (appSettingsLaunched) {
       appSettingsLaunched = false
-      openObbOrZim()
+      isWebViewHistoryRestoring = true
+      coreReaderLifeCycleScope?.launch {
+        if (zimReaderContainer?.zimFileReader == null) {
+          openObbOrZim(true)
+        } else {
+          manageExternalLaunchAndRestoringViewState()
+        }
+      }
     }
   }
 }

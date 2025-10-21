@@ -30,10 +30,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.runBlocking
+import org.json.JSONArray
+import org.json.JSONObject
 import org.kiwix.kiwixmobile.core.DarkModeConfig
 import org.kiwix.kiwixmobile.core.DarkModeConfig.Mode.Companion.from
 import org.kiwix.kiwixmobile.core.R
 import org.kiwix.kiwixmobile.core.extensions.isFileExist
+import org.kiwix.kiwixmobile.core.zim_manager.Language
 import java.io.File
 import java.util.Locale
 import javax.inject.Inject
@@ -50,9 +53,8 @@ class SharedPreferenceUtil @Inject constructor(val context: Context) {
   private val _prefStorages = MutableStateFlow("")
   val prefStorages
     get() = _prefStorages.asStateFlow().onStart { emit(prefStorage) }
-  private val _textZooms = MutableStateFlow(DEFAULT_ZOOM)
-  val textZooms
-    get() = _textZooms.asStateFlow().onStart { emit(textZoom) }
+  private val _textZooms = MutableStateFlow(textZoom)
+  val textZooms get() = _textZooms.asStateFlow()
   private val darkModes = MutableStateFlow(DarkModeConfig.Mode.SYSTEM)
   private val _prefWifiOnlys = MutableStateFlow(true)
   val prefWifiOnlys
@@ -60,6 +62,9 @@ class SharedPreferenceUtil @Inject constructor(val context: Context) {
 
   val prefWifiOnly: Boolean
     get() = sharedPreferences.getBoolean(PREF_WIFI_ONLY, true)
+
+  private val _onlineContentLanguage = MutableStateFlow("")
+  val onlineContentLanguage = _onlineContentLanguage.asStateFlow()
 
   val prefIsFirstRun: Boolean
     get() = sharedPreferences.getBoolean(PREF_IS_FIRST_RUN, true)
@@ -73,14 +78,17 @@ class SharedPreferenceUtil @Inject constructor(val context: Context) {
   val prefShowShowCaseToUser: Boolean
     get() = sharedPreferences.getBoolean(PREF_SHOW_SHOWCASE, true)
 
-  val prefFullScreen: Boolean
-    get() = sharedPreferences.getBoolean(PREF_FULLSCREEN, false)
-
-  val prefBackToTop: Boolean
+  var prefBackToTop: Boolean
     get() = sharedPreferences.getBoolean(PREF_BACK_TO_TOP, false)
+    set(backToTop) {
+      sharedPreferences.edit { putBoolean(PREF_BACK_TO_TOP, backToTop) }
+    }
 
-  val prefNewTabBackground: Boolean
+  var prefNewTabBackground: Boolean
     get() = sharedPreferences.getBoolean(PREF_NEW_TAB_BACKGROUND, false)
+    set(newTabInBackground) {
+      sharedPreferences.edit { putBoolean(PREF_NEW_TAB_BACKGROUND, newTabInBackground) }
+    }
 
   val prefExternalLinkPopup: Boolean
     get() = sharedPreferences.getBoolean(PREF_EXTERNAL_LINK_POPUP, true)
@@ -108,6 +116,9 @@ class SharedPreferenceUtil @Inject constructor(val context: Context) {
 
   val prefIsAppDirectoryMigrated: Boolean
     get() = sharedPreferences.getBoolean(PREF_APP_DIRECTORY_TO_PUBLIC_MIGRATED, false)
+
+  val prefIsBookOnDiskMigrated: Boolean
+    get() = sharedPreferences.getBoolean(PREF_BOOK_ON_DISK_MIGRATED, false)
 
   val prefStorage: String
     get() {
@@ -158,6 +169,9 @@ class SharedPreferenceUtil @Inject constructor(val context: Context) {
   fun putPrefAppDirectoryMigrated(isMigrated: Boolean) =
     sharedPreferences.edit { putBoolean(PREF_APP_DIRECTORY_TO_PUBLIC_MIGRATED, isMigrated) }
 
+  fun putPrefBookOnDiskMigrated(isMigrated: Boolean) =
+    sharedPreferences.edit { putBoolean(PREF_BOOK_ON_DISK_MIGRATED, isMigrated) }
+
   fun putPrefLanguage(language: String) =
     sharedPreferences.edit { putString(PREF_LANG, language) }
 
@@ -185,11 +199,42 @@ class SharedPreferenceUtil @Inject constructor(val context: Context) {
     sharedPreferences.edit { putBoolean(IS_PLAY_STORE_BUILD, isPlayStoreBuildType) }
   }
 
-  fun putPrefFullScreen(fullScreen: Boolean) =
-    sharedPreferences.edit { putBoolean(PREF_FULLSCREEN, fullScreen) }
-
   fun putPrefExternalLinkPopup(externalLinkPopup: Boolean) =
     sharedPreferences.edit { putBoolean(PREF_EXTERNAL_LINK_POPUP, externalLinkPopup) }
+
+  fun saveLanguageList(languages: List<Language>) {
+    runCatching {
+      val jsonArray = JSONArray()
+      languages.forEach { lang ->
+        val obj = JSONObject().apply {
+          put(KEY_LANGUAGE_CODE, lang.languageCode)
+          put(KEY_OCCURRENCES_OF_LANGUAGE, lang.occurencesOfLanguage)
+          put(KEY_LANGUAGE_ACTIVE, lang.active)
+          put(KEY_LANGUAGE_ID, lang.id)
+        }
+        jsonArray.put(obj)
+      }
+      sharedPreferences.edit {
+        putString(CACHED_LANGUAGE_CODES, jsonArray.toString())
+      }
+    }.onFailure { it.printStackTrace() }
+  }
+
+  fun getCachedLanguageList(): List<Language>? =
+    runCatching {
+      val jsonString =
+        sharedPreferences.getString(CACHED_LANGUAGE_CODES, null) ?: return@runCatching null
+      val jsonArray = JSONArray(jsonString)
+      List(jsonArray.length()) { i ->
+        val obj = jsonArray.getJSONObject(i)
+        Language(
+          languageCode = obj.getString(KEY_LANGUAGE_CODE),
+          occurrencesOfLanguage = obj.getInt(KEY_OCCURRENCES_OF_LANGUAGE),
+          active = selectedOnlineContentLanguage == obj.getString(KEY_LANGUAGE_CODE),
+          id = obj.getLong(KEY_LANGUAGE_ID)
+        )
+      }
+    }.onFailure { it.printStackTrace() }.getOrNull()
 
   fun showIntro(): Boolean = sharedPreferences.getBoolean(PREF_SHOW_INTRO, true)
 
@@ -231,7 +276,10 @@ class SharedPreferenceUtil @Inject constructor(val context: Context) {
 
   fun darkModes(): Flow<DarkModeConfig.Mode> = darkModes.onStart { emit(darkMode) }
 
-  fun updateDarkMode() = darkModes.tryEmit(darkMode)
+  fun updateDarkMode(selectedMode: String) {
+    sharedPreferences.edit { putString(PREF_DARK_MODE, selectedMode) }
+    darkModes.tryEmit(darkMode)
+  }
 
   var manageExternalFilesPermissionDialog: Boolean
     get() = sharedPreferences.getBoolean(PREF_MANAGE_EXTERNAL_FILES, true)
@@ -288,6 +336,18 @@ class SharedPreferenceUtil @Inject constructor(val context: Context) {
       }
     }
 
+  var selectedOnlineContentLanguage: String
+    get() = sharedPreferences.getString(SELECTED_ONLINE_CONTENT_LANGUAGE, "").orEmpty()
+    set(selectedOnlineContentLanguage) {
+      sharedPreferences.edit {
+        putString(
+          SELECTED_ONLINE_CONTENT_LANGUAGE,
+          selectedOnlineContentLanguage
+        )
+      }
+      _onlineContentLanguage.tryEmit(selectedOnlineContentLanguage)
+    }
+
   fun getPublicDirectoryPath(path: String): String =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
       path
@@ -308,8 +368,6 @@ class SharedPreferenceUtil @Inject constructor(val context: Context) {
     const val PREF_LANG = "pref_language_chooser"
     const val PREF_DEVICE_DEFAULT_LANG = "pref_device_default_language"
     const val PREF_STORAGE = "pref_select_folder"
-    const val PREF_INTERNAL_STORAGE = "pref_internal_storage"
-    const val PREF_EXTERNAL_STORAGE = "pref_external_storage"
     const val STORAGE_POSITION = "storage_position"
     const val PREF_WIFI_ONLY = "pref_wifi_only"
     const val PREF_KIWIX_MOBILE = "kiwix-mobile"
@@ -317,7 +375,6 @@ class SharedPreferenceUtil @Inject constructor(val context: Context) {
     const val PREF_IS_TEST = "is_test"
     const val PREF_SHOW_SHOWCASE = "showShowCase"
     private const val PREF_BACK_TO_TOP = "pref_backtotop"
-    private const val PREF_FULLSCREEN = "pref_fullscreen"
     private const val PREF_NEW_TAB_BACKGROUND = "pref_newtab_background"
     const val PREF_EXTERNAL_LINK_POPUP = "pref_external_link_popup"
     const val PREF_SHOW_STORAGE_OPTION = "show_storgae_option"
@@ -337,9 +394,16 @@ class SharedPreferenceUtil @Inject constructor(val context: Context) {
     const val PREF_HISTORY_MIGRATED = "pref_history_migrated"
     const val PREF_NOTES_MIGRATED = "pref_notes_migrated"
     const val PREF_APP_DIRECTORY_TO_PUBLIC_MIGRATED = "pref_app_directory_to_public_migrated"
+    const val PREF_BOOK_ON_DISK_MIGRATED = "pref_book_on_disk_migrated"
     const val PREF_SHOW_COPY_MOVE_STORAGE_SELECTION_DIALOG = "pref_show_copy_move_storage_dialog"
     private const val PREF_LATER_CLICKED_MILLIS = "pref_later_clicked_millis"
     const val PREF_LAST_DONATION_POPUP_SHOWN_IN_MILLISECONDS =
       "pref_last_donation_shown_in_milliseconds"
+    private const val SELECTED_ONLINE_CONTENT_LANGUAGE = "selectedOnlineContentLanguage"
+    private const val CACHED_LANGUAGE_CODES = "cachedLanguageCodes"
+    private const val KEY_LANGUAGE_CODE = "languageCode"
+    private const val KEY_OCCURRENCES_OF_LANGUAGE = "occurrencesOfLanguage"
+    private const val KEY_LANGUAGE_ACTIVE = "languageActive"
+    private const val KEY_LANGUAGE_ID = "languageId"
   }
 }

@@ -20,8 +20,6 @@
   <string name="menu_search_in_text">Op pagina zoeken</string>
   <string name="bookmarks">Bladwijzers</string>
   <string name="menu_random_article">Willekeurig artikel</string>
-  <string name="menu_full_screen">Volledig scherm</string>
-  <string name="menu_exit_full_screen">Volledig scherm verlaten</string>
   <string name="menu_read_aloud">Voorlezen</string>
   <string name="menu_read_aloud_stop">Stoppen met voorlezen</string>
   <string name="menu_support_kiwix">Steun Kiwix</string>
@@ -220,7 +218,6 @@
   <string name="go_to_previous_page">Naar vorige pagina</string>
   <string name="go_to_next_page">Naar volgende pagina</string>
   <string name="table_of_contents">Inhoudsopgave</string>
-  <string name="select_languages">Kies talen</string>
   <string name="save_languages">Talen opslaan</string>
   <string name="expand">Uitvouwen</string>
   <string name="history">Geschiedenis</string>

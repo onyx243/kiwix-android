@@ -19,9 +19,8 @@
 package org.kiwix.kiwixmobile.core.zim_manager.fileselect_view
 
 import org.kiwix.kiwixmobile.core.compat.CompatHelper.Companion.convertToLocal
-import org.kiwix.kiwixmobile.core.dao.entities.BookOnDiskEntity
 import org.kiwix.kiwixmobile.core.dao.entities.DownloadRoomEntity
-import org.kiwix.kiwixmobile.core.entity.LibraryNetworkEntity
+import org.kiwix.kiwixmobile.core.entity.LibkiwixBook
 import org.kiwix.kiwixmobile.core.reader.ZimFileReader
 import org.kiwix.kiwixmobile.core.reader.ZimReaderSource
 import org.kiwix.kiwixmobile.core.zim_manager.KiwixTag
@@ -30,36 +29,29 @@ import java.util.Locale
 
 sealed class BooksOnDiskListItem {
   var isSelected: Boolean = false
-  abstract val id: Long
+  abstract val id: String
 
   data class LanguageItem constructor(
-    override val id: Long,
+    override val id: String,
     val text: String
   ) : BooksOnDiskListItem() {
     constructor(locale: Locale) : this(
-      locale.language.hashCode().toLong(),
+      locale.language,
       locale.getDisplayLanguage(locale)
     )
   }
 
   data class BookOnDisk constructor(
     val databaseId: Long = 0L,
-    val book: LibraryNetworkEntity.Book,
+    val book: LibkiwixBook,
     val file: File = File(""),
     val zimReaderSource: ZimReaderSource,
     val tags: List<KiwixTag> = KiwixTag.Companion.from(book.tags),
-    override val id: Long = databaseId
+    override val id: String = book.id
   ) : BooksOnDiskListItem() {
     val locale: Locale by lazy {
       book.language.convertToLocal()
     }
-
-    constructor(bookOnDiskEntity: BookOnDiskEntity) : this(
-      databaseId = bookOnDiskEntity.id,
-      file = bookOnDiskEntity.file,
-      book = bookOnDiskEntity.toBook(),
-      zimReaderSource = bookOnDiskEntity.zimReaderSource
-    )
 
     constructor(downloadRoomEntity: DownloadRoomEntity) : this(
       book = downloadRoomEntity.toBook(),
@@ -69,6 +61,11 @@ sealed class BooksOnDiskListItem {
     constructor(zimFileReader: ZimFileReader) : this(
       book = zimFileReader.toBook(),
       zimReaderSource = zimFileReader.zimReaderSource
+    )
+
+    constructor(libkiwixBook: LibkiwixBook) : this(
+      book = libkiwixBook,
+      zimReaderSource = libkiwixBook.zimReaderSource
     )
   }
 }

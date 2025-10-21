@@ -26,11 +26,10 @@ import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import applyWithViewHierarchyPrinting
 import org.kiwix.kiwixmobile.BaseRobot
-import org.kiwix.kiwixmobile.Findable.ViewId
-import org.kiwix.kiwixmobile.R
 import org.kiwix.kiwixmobile.core.R.string
 import org.kiwix.kiwixmobile.core.page.SEARCH_ICON_TESTING_TAG
 import org.kiwix.kiwixmobile.core.ui.components.TOOLBAR_TITLE_TESTING_TAG
@@ -38,12 +37,15 @@ import org.kiwix.kiwixmobile.core.utils.dialog.ALERT_DIALOG_CONFIRM_BUTTON_TESTI
 import org.kiwix.kiwixmobile.core.utils.dialog.ALERT_DIALOG_TITLE_TEXT_TESTING_TAG
 import org.kiwix.kiwixmobile.core.utils.files.Log
 import org.kiwix.kiwixmobile.download.DownloadTest.Companion.KIWIX_DOWNLOAD_TEST
+import org.kiwix.kiwixmobile.main.BOTTOM_NAV_DOWNLOADS_ITEM_TESTING_TAG
+import org.kiwix.kiwixmobile.main.BOTTOM_NAV_LIBRARY_ITEM_TESTING_TAG
 import org.kiwix.kiwixmobile.nav.destination.library.local.NO_FILE_TEXT_TESTING_TAG
 import org.kiwix.kiwixmobile.nav.destination.library.online.DOWNLOADING_PAUSE_BUTTON_TESTING_TAG
 import org.kiwix.kiwixmobile.nav.destination.library.online.DOWNLOADING_STATE_TEXT_TESTING_TAG
 import org.kiwix.kiwixmobile.nav.destination.library.online.DOWNLOADING_STOP_BUTTON_TESTING_TAG
 import org.kiwix.kiwixmobile.nav.destination.library.online.NO_CONTENT_VIEW_TEXT_TESTING_TAG
 import org.kiwix.kiwixmobile.nav.destination.library.online.ONLINE_BOOK_ITEM_TESTING_TAG
+import org.kiwix.kiwixmobile.nav.destination.library.online.ONLINE_DIVIDER_ITEM_TEXT_TESTING_TAG
 import org.kiwix.kiwixmobile.nav.destination.library.online.ONLINE_LIBRARY_SEARCH_VIEW_CLOSE_BUTTON_TESTING_TAG
 import org.kiwix.kiwixmobile.nav.destination.library.online.ONLINE_LIBRARY_SEARCH_VIEW_TESTING_TAG
 import org.kiwix.kiwixmobile.nav.destination.library.online.SHOW_FETCHING_LIBRARY_LAYOUT_TESTING_TAG
@@ -56,12 +58,19 @@ fun downloadRobot(func: DownloadRobot.() -> Unit) =
   DownloadRobot().applyWithViewHierarchyPrinting(func)
 
 class DownloadRobot : BaseRobot() {
-  fun clickLibraryOnBottomNav() {
-    clickOn(ViewId(R.id.libraryFragment))
+  private val searchZIMFileTitle = "Zapping Sauvage"
+  fun clickLibraryOnBottomNav(composeTestRule: ComposeContentTestRule) {
+    composeTestRule.apply {
+      waitUntilTimeout()
+      onNodeWithTag(BOTTOM_NAV_LIBRARY_ITEM_TESTING_TAG).performClick()
+    }
   }
 
-  fun clickDownloadOnBottomNav() {
-    clickOn(ViewId(R.id.downloadsFragment))
+  fun clickDownloadOnBottomNav(composeTestRule: ComposeContentTestRule) {
+    composeTestRule.apply {
+      waitUntilTimeout()
+      onNodeWithTag(BOTTOM_NAV_DOWNLOADS_ITEM_TESTING_TAG).performClick()
+    }
   }
 
   // Increasing the default timeout for data loading because, on the Android 16 Emulator,
@@ -83,6 +92,15 @@ class DownloadRobot : BaseRobot() {
       }
       // throw the exception when there is no more retry left.
       throw RuntimeException("Couldn't load the online library list.\n Original exception = $e")
+    }
+  }
+
+  fun checkLanguageFilterAppliedToOnlineContent(
+    composeTestRule: ComposeContentTestRule,
+    language: String
+  ) {
+    composeTestRule.apply {
+      onNodeWithTag(ONLINE_DIVIDER_ITEM_TEXT_TESTING_TAG).assertTextEquals(language)
     }
   }
 
@@ -117,6 +135,27 @@ class DownloadRobot : BaseRobot() {
       // check if "No files here" text is not visible on
       // screen that means zim file is downloaded successfully.
     }
+  }
+
+  fun searchZappingSauvageFile(composeTestRule: ComposeContentTestRule) {
+    testFlakyView({
+      composeTestRule.apply {
+        waitForIdle() // let the compose settle.
+        runCatching {
+          // if searchView already opened do nothing.
+          onNodeWithTag(ONLINE_LIBRARY_SEARCH_VIEW_CLOSE_BUTTON_TESTING_TAG).assertExists()
+        }.onFailure {
+          // if searchView is not opened then open it.
+          onNodeWithTag(SEARCH_ICON_TESTING_TAG).performClick()
+        }
+        waitForIdle()
+        onNodeWithTag(ONLINE_LIBRARY_SEARCH_VIEW_TESTING_TAG).apply {
+          performTextClearance()
+          performTextInput(searchZIMFileTitle)
+        }
+        waitUntilTimeout(TestUtils.TEST_PAUSE_MS_FOR_DOWNLOAD_TEST.toLong())
+      }
+    })
   }
 
   private fun refreshOnlineList(composeTestRule: ComposeContentTestRule) {

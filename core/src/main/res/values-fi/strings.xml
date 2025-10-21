@@ -16,8 +16,6 @@
   <string name="menu_search_in_text">Etsi sivulta</string>
   <string name="bookmarks">Kirjanmerkit</string>
   <string name="menu_random_article">Satunnainen artikkeli</string>
-  <string name="menu_full_screen">Koko näyttö</string>
-  <string name="menu_exit_full_screen">Poistu kokoruututilasta</string>
   <string name="menu_read_aloud">Lue ääneen</string>
   <string name="menu_read_aloud_stop">Lopeta ääneen lukeminen</string>
   <string name="menu_support_kiwix">Tue Kiwixiä</string>
@@ -167,7 +165,6 @@
   <string name="go_to_previous_page">Siirry edelliselle sivulle</string>
   <string name="go_to_next_page">Siirry seuraavalle sivulle</string>
   <string name="table_of_contents">Sisällysluettelo</string>
-  <string name="select_languages">Valitse kielet</string>
   <string name="save_languages">Tallenna kielet</string>
   <string name="expand">Laajenna</string>
   <string name="history">Historia</string>
